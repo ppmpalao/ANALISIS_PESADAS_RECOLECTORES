@@ -3,13 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Auditoría de Pesadas & Conciliación de Carga</title>
-    <!-- Tailwind CSS para diseño moderno -->
+    <title>AUDIT-PRO | Analizador y Conciliador Real de Pesadas</title>
+    <!-- Tailwind CSS para diseño moderno y responsivo -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Chart.js para visualización de gráficos interactivos -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- SheetJS para procesamiento de archivos de Excel y CSV directamente en el cliente -->
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <!-- PDF.js para lectura y extracción de tablas espaciales desde archivos PDF -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
     <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
         body {
             font-family: 'Inter', sans-serif;
         }
@@ -31,45 +35,46 @@
 </head>
 <body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col">
 
-    <!-- CABECERA PRINCIPAL -->
-    <header class="bg-slate-900 text-white shadow-md border-b border-slate-800 sticky top-0 z-50">
+    <!-- CABECERA DE LA APP -->
+    <header class="bg-slate-950 text-white shadow-md border-b border-slate-800 sticky top-0 z-50">
         <div class="max-w-7xl mx-auto px-4 py-3 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4">
             <div class="flex items-center gap-3">
                 <div class="bg-blue-600 text-white p-2 rounded-lg shadow-inner">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2a4 4 0 00-4-4H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 002 2h2a2 2 0 002-2z" />
                     </svg>
                 </div>
                 <div>
-                    <h1 class="text-xl font-bold tracking-tight">AUDIT-PRO</h1>
-                    <p class="text-xs text-slate-400 font-medium">Plataforma Senior de Auditoría Logística y Conciliación</p>
+                    <h1 class="text-xl font-bold tracking-tight">AUDIT-PRO <span class="text-xs bg-emerald-500/20 text-emerald-400 font-semibold px-2 py-0.5 rounded ml-1.5 border border-emerald-500/30">Motor Multiformato</span></h1>
+                    <p class="text-xs text-slate-400 font-medium">Auditoría Logística y Conciliación desde Excel, CSV, XML y PDF</p>
                 </div>
             </div>
             
-            <!-- Selector de Proyecto y Matrícula Activa -->
-            <div class="flex flex-wrap items-center gap-2">
-                <span class="text-xs font-semibold px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                    Proyecto: <span id="header-proyecto-lbl" class="text-white font-bold">Cargando...</span>
+            <!-- Metadata de Auditoría en Tiempo Real -->
+            <div id="header-metadata-container" class="hidden flex flex-wrap items-center gap-2">
+                <span class="text-xs font-semibold px-2.5 py-1 rounded bg-slate-900 text-slate-300 border border-slate-800">
+                    Proyecto: <span id="header-proyecto-lbl" class="text-white font-bold">-</span>
                 </span>
-                <span class="text-xs font-semibold px-2.5 py-1 rounded bg-slate-800 text-slate-300 border border-slate-700">
-                    Vehículo: <span id="header-vehiculo-lbl" class="text-white font-bold">Cargando...</span>
+                <span class="text-xs font-semibold px-2.5 py-1 rounded bg-slate-900 text-slate-300 border border-slate-800">
+                    Vehículo: <span id="header-vehiculo-lbl" class="text-white font-bold">-</span>
                 </span>
-                <button onclick="toggleConfigModal()" class="text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-md font-semibold transition-all shadow flex items-center gap-1.5">
+                <button onclick="toggleConfigModal()" class="text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 px-3 py-1.5 rounded-md font-semibold transition-all border border-slate-700 flex items-center gap-1.5">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" viewBox="0 0 20 20" fill="currentColor">
                         <path fill-rule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clip-rule="evenodd" />
                     </svg>
-                    Ajustes de Motor
+                    Tolerancias
                 </button>
             </div>
         </div>
     </header>
 
-    <!-- NAVEGACIÓN Y CONFIGURADOR DE DATOS RÁPIDO -->
-    <div class="bg-white border-b border-slate-200 py-3 shadow-sm">
+    <!-- NOTIFICACIONES CUSTOM (EVITA BROWSER ALERTS) -->
+    <div id="toast-container" class="fixed bottom-5 right-5 z-50 space-y-2 pointer-events-none"></div>
+
+    <!-- PESTAÑAS Y NAVEGACIÓN -->
+    <div id="navigation-bar" class="bg-white border-b border-slate-200 py-3 shadow-sm hidden">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row md:items-center justify-between gap-4">
-            
-            <!-- Pestañas Principales -->
-            <div class="flex space-x-2 border-b md:border-b-0 pb-2 md:pb-0">
+            <div class="flex space-x-2">
                 <button id="tab-dashboard" onclick="switchTab('dashboard')" class="px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all bg-blue-50 text-blue-700 border border-blue-100">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2H6a2 2 0 01-2-2v-4zM14 16a2 2 0 012-2h2a2 2 0 012 2v4a2 2 0 01-2 2h-2a2 2 0 01-2-2v-4z" />
@@ -83,139 +88,243 @@
                     Detalle Analítico Diario
                 </button>
             </div>
-
-            <!-- Acciones Rápidas de Configuración / Simulación de Datos -->
-            <div class="flex flex-wrap items-center gap-2">
-                <button onclick="loadTemplateData('navarra')" class="px-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition border border-slate-200">
-                    Cargar Caso Navarra (7461KPW)
-                </button>
-                <button onclick="loadTemplateData('andalucia')" class="px-3 py-1.5 text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-medium rounded-lg transition border border-slate-200">
-                    Cargar Caso Andalucía (5320FDL)
-                </button>
-                <button onclick="openImportModal()" class="px-3 py-1.5 text-xs bg-emerald-600 hover:bg-emerald-500 text-white font-semibold rounded-lg shadow transition flex items-center gap-1">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+            
+            <div>
+                <button onclick="unloadAuditor()" class="text-xs bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 px-4 py-2 rounded-lg font-bold transition flex items-center gap-1.5">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                     </svg>
-                    Importar Datos
+                    Nueva Auditoría (Limpiar Datos)
                 </button>
             </div>
         </div>
     </div>
 
-    <!-- CONTENEDOR PRINCIPAL DE CONTENIDOS -->
+    <!-- CONTENEDOR PRINCIPAL -->
     <main class="flex-grow max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
 
-        <!-- ==================== VISTA 1: DASHBOARD GENERAL ==================== -->
-        <div id="view-dashboard" class="space-y-6">
+        <!-- ==================== VISTA 0: INGESTA Y CONFIGURACIÓN INICIAL ==================== -->
+        <div id="view-ingestion" class="max-w-3xl mx-auto space-y-6">
             
-            <!-- Resumen de Contexto Global -->
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 md:p-8 space-y-6">
+                <div class="border-b border-slate-100 pb-4">
+                    <h2 class="text-lg font-black text-slate-800">Iniciar Auditoría Logística Real</h2>
+                    <p class="text-xs text-slate-500 mt-1">Sube los ficheros de pesaje del camión y de la planta. El sistema procesará datos en formatos Excel, CSV, XML o PDF de forma local.</p>
+                </div>
+
+                <!-- Campos de Configuración del Proyecto -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Nombre del Proyecto / Obra *</label>
+                        <input id="input-proyecto" type="text" placeholder="Ej: Obra Autovía del Pirineo - Tramo Cáseda" class="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Matrícula del Vehículo *</label>
+                        <input id="input-matricula" type="text" placeholder="Ej: 7461KPW" class="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-3 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all">
+                    </div>
+                </div>
+
+                <!-- CARGA DE ARCHIVO 1: PESADAS DEL VEHÍCULO -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider">1. Listado de Pesadas del Vehículo (Excel, CSV, XML o PDF) *</label>
+                    <div id="drop-pesadas" class="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-blue-400 hover:bg-blue-50/20 transition-all flex flex-col items-center justify-center cursor-pointer relative">
+                        <input type="file" id="file-pesadas" accept=".xlsx, .xls, .csv, .xml, .pdf" onchange="processFile('pesadas')" class="absolute inset-0 opacity-0 cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-blue-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                        <span id="label-pesadas-file" class="text-xs font-bold text-slate-700 block font-sans">Arrastra o selecciona el archivo de pesadas del camión</span>
+                        <span class="text-[10px] text-slate-400 block mt-1 font-medium">Soporta Excel (.xlsx, .xls), CSV, XML y reportes en PDF.</span>
+                    </div>
+
+                    <!-- Mapeador Dinámico de Columnas Pesadas -->
+                    <div id="mapper-pesadas" class="hidden bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
+                        <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-1 flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+                            Configuración del Mapeo de Columnas (Listado de Pesadas)
+                        </p>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">ID Registro (Opcional)</label>
+                                <select id="map-pesadas-id" class="w-full text-xs bg-white border border-slate-200 rounded p-1.5"></select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Fecha y Hora *</label>
+                                <select id="map-pesadas-timestamp" class="w-full text-xs bg-white border border-slate-200 rounded p-1.5 font-semibold text-blue-700"></select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Peso Neto (kg) *</label>
+                                <select id="map-pesadas-peso" class="w-full text-xs bg-white border border-slate-200 rounded p-1.5 font-semibold text-blue-700"></select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CARGA DE ARCHIVO 2: PESO REAL DESCARGADO EN PLANTA/VERTEDERO -->
+                <div class="space-y-2">
+                    <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider">2. Listado de Pesos en Vertedero / Planta (Excel, CSV, XML o PDF) *</label>
+                    <div id="drop-planta" class="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-emerald-400 hover:bg-emerald-50/20 transition-all flex flex-col items-center justify-center cursor-pointer relative">
+                        <input type="file" id="file-planta" accept=".xlsx, .xls, .csv, .xml, .pdf" onchange="processFile('planta')" class="absolute inset-0 opacity-0 cursor-pointer">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-8 w-8 text-emerald-500 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+                        </svg>
+                        <span id="label-planta-file" class="text-xs font-bold text-slate-700 block font-sans">Arrastra o selecciona el archivo de descargas de la planta</span>
+                        <span class="text-[10px] text-slate-400 block mt-1 font-medium">Soporta Excel (.xlsx, .xls), CSV, XML y tickets/reportes en PDF.</span>
+                    </div>
+
+                    <!-- Mapeador Dinámico de Columnas Planta -->
+                    <div id="mapper-planta" class="hidden bg-slate-50 border border-slate-200 p-4 rounded-xl space-y-3">
+                        <p class="text-[11px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-200 pb-1 flex items-center gap-1.5">
+                            <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                            Configuración del Mapeo de Columnas (Listado de Planta)
+                        </p>
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Fecha de Operación *</label>
+                                <select id="map-planta-fecha" class="w-full text-xs bg-white border border-slate-200 rounded p-1.5 font-semibold text-emerald-700"></select>
+                            </div>
+                            <div>
+                                <label class="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Peso Oficial Descargado (kg) *</label>
+                                <select id="map-planta-peso" class="w-full text-xs bg-white border border-slate-200 rounded p-1.5 font-semibold text-emerald-700"></select>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botón de Ejecución del Motor -->
+                <div class="pt-4 border-t border-slate-100 flex flex-col gap-3">
+                    <button id="btn-run-analysis" onclick="runAnalysisEngine()" class="w-full py-3.5 bg-blue-600 hover:bg-blue-500 disabled:bg-slate-200 disabled:text-slate-400 disabled:cursor-not-allowed text-white font-black text-xs uppercase tracking-wider rounded-xl shadow-lg transition-all" disabled>
+                        Procesar y Ejecutar Auditoría Técnica
+                    </button>
+                    
+                    <!-- Centro de ayuda sobre estructuras para testear -->
+                    <div class="bg-slate-50 border border-slate-200 rounded-xl p-4 space-y-2">
+                        <div class="flex items-center gap-2 text-xs font-bold text-slate-700">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-blue-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                            ¿No tienes archivos a mano para probar ahora?
+                        </div>
+                        <p class="text-[11px] text-slate-500 text-justify leading-relaxed">Puedes descargar estas dos plantillas estructuradas de ejemplo para ver la potencia del motor analítico de manera instantánea:</p>
+                        <div class="flex flex-wrap gap-2 pt-1">
+                            <button onclick="downloadSampleFile('pesadas')" class="text-[10px] bg-white hover:bg-slate-100 border border-slate-200 px-2.5 py-1.5 rounded-md font-bold text-slate-600 flex items-center gap-1 transition">
+                                <span class="w-2.5 h-2.5 rounded-full bg-blue-500 animate-pulse"></span> Descargar Pesadas de Prueba (CSV)
+                            </button>
+                            <button onclick="downloadSampleFile('planta')" class="text-[10px] bg-white hover:bg-slate-100 border border-slate-200 px-2.5 py-1.5 rounded-md font-bold text-slate-600 flex items-center gap-1 transition">
+                                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span> Descargar Planta de Prueba (CSV)
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- ==================== VISTA 1: DASHBOARD GENERAL ==================== -->
+        <div id="view-dashboard" class="space-y-6 hidden">
+            
+            <!-- Contexto Global -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col md:flex-row items-center justify-between gap-4">
                 <div class="space-y-1">
-                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400">Auditoría Activa</h2>
-                    <p class="text-lg font-bold text-slate-800" id="dash-project-title">Proyecto Navarra - Obra Autovía del Pirineo</p>
+                    <h2 class="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono">Auditoría Real Activa</h2>
+                    <p class="text-lg font-black text-slate-800" id="dash-project-title">-</p>
                     <p class="text-xs text-slate-500 flex items-center gap-1.5">
                         <svg xmlns="http://www.w3.org/2000/svg" class="h-4.5 w-4.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
                         </svg>
-                        Rango Temporal: <span id="dash-date-range" class="font-semibold text-slate-700">01/05/2026 - 08/05/2026</span>
-                        (<span id="dash-total-days" class="font-semibold text-slate-700">8</span> días analizados)
+                        Rango Analizado: <span id="dash-date-range" class="font-bold text-slate-700">-</span>
+                        (<span id="dash-total-days" class="font-bold text-slate-700">0</span> días operativos)
                     </p>
                 </div>
                 <div class="flex gap-4">
-                    <div class="text-center px-4 py-2 border-r border-slate-200">
-                        <span class="block text-2xl font-black text-slate-800" id="dash-total-registros">284</span>
-                        <span class="text-[10px] uppercase font-bold text-slate-400">Pesadas Origen</span>
+                    <div class="text-center px-4 py-2 border-r border-slate-200 font-mono">
+                        <span class="block text-2xl font-black text-slate-850" id="dash-total-registros">0</span>
+                        <span class="text-[10px] uppercase font-bold text-slate-400 font-sans">Registros Analizados</span>
                     </div>
-                    <div class="text-center px-4 py-2">
-                        <span class="block text-2xl font-black text-amber-500" id="dash-total-sospechosos">41</span>
-                        <span class="text-[10px] uppercase font-bold text-slate-400">Anomalías Detectadas</span>
+                    <div class="text-center px-4 py-2 font-mono">
+                        <span class="block text-2xl font-black text-amber-500" id="dash-total-sospechosos">0</span>
+                        <span class="text-[10px] uppercase font-bold text-slate-400 font-sans">Anomalías Detectadas</span>
                     </div>
                 </div>
             </div>
 
-            <!-- TARJETAS DE KPIs CLAVE -->
+            <!-- TABLERO DE KPIs GENERALES -->
             <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between">
                     <div>
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Neto Registrado</span>
-                        <h3 class="text-2xl font-extrabold text-slate-900 mt-1" id="kpi-total-neto">0 kg</h3>
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Neto Pesadas</span>
+                        <h3 class="text-2xl font-black text-slate-900 mt-1 font-mono" id="kpi-total-neto">0 kg</h3>
                     </div>
                     <p class="text-[11px] text-slate-500 mt-3 border-t border-slate-100 pt-2 flex items-center gap-1">
-                        <span class="inline-block w-2 h-2 rounded-full bg-blue-500"></span>
-            Sumatorio acumulado del listado de pesadas origen
+                        <span class="inline-block w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
+                        Sumatorio bruto del listado procesado
                     </p>
                 </div>
 
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between">
                     <div>
                         <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Total Real Planta</span>
-                        <h3 class="text-2xl font-extrabold text-slate-900 mt-1" id="kpi-total-planta">0 kg</h3>
+                        <h3 class="text-2xl font-black text-slate-900 mt-1 font-mono" id="kpi-total-planta">0 kg</h3>
                     </div>
                     <p class="text-[11px] text-slate-500 mt-3 border-t border-slate-100 pt-2 flex items-center gap-1">
                         <span class="inline-block w-2 h-2 rounded-full bg-emerald-500"></span>
-            Pesaje oficial registrado en destino final
+                        Pesaje oficial acumulado en destino final
                     </p>
                 </div>
 
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between">
                     <div>
-                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Diferencia Total</span>
-                        <h3 class="text-2xl font-extrabold mt-1" id="kpi-diferencia-kg">0 kg</h3>
+                        <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Diferencia de Carga</span>
+                        <h3 class="text-2xl font-black mt-1 font-mono" id="kpi-diferencia-kg">0 kg</h3>
                     </div>
                     <p class="text-[11px] text-slate-500 mt-3 border-t border-slate-100 pt-2 flex items-center gap-1">
                         <span class="inline-block w-2 h-2 rounded-full bg-orange-400" id="kpi-diff-indicator"></span>
-            Carga no justificada o errores de registro
+                        Carga pendiente por justificar / desvío
                     </p>
                 </div>
 
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between">
                     <div>
                         <span class="text-xs font-bold text-slate-400 uppercase tracking-wider block">Porcentaje Desviación</span>
-                        <h3 class="text-2xl font-extrabold mt-1" id="kpi-desviacion-percent">0.00%</h3>
+                        <h3 class="text-2xl font-black mt-1 font-mono" id="kpi-desviacion-percent">0.00%</h3>
                     </div>
                     <p class="text-[11px] text-slate-500 mt-3 border-t border-slate-100 pt-2 flex items-center gap-1">
                         <span class="inline-block w-2 h-2 rounded-full bg-rose-500" id="kpi-desv-indicator"></span>
-            Porcentaje global de desequilibrio operativo
+                        Tolerancia crítica parametrizada
                     </p>
                 </div>
             </div>
 
-            <!-- GRÁFICOS COMPARATIVOS DIARIOS -->
+            <!-- GRÁFICOS DIARIOS DE AUDITORÍA -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <!-- Gráfico de Carga -->
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Peso Registrado vs Real Planta (kg)</h3>
+                    <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4">Peso Registrado vs Real Planta (kg)</h3>
                     <div class="h-64 relative">
                         <canvas id="chartWeights"></canvas>
                     </div>
                 </div>
 
-                <!-- Gráfico de Desviación Diaria -->
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Evolución de la Desviación Diaria (kg)</h3>
+                    <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4">Evolución del Desvío Diario (kg)</h3>
                     <div class="h-64 relative">
                         <canvas id="chartDeviations"></canvas>
                     </div>
                 </div>
 
-                <!-- Gráfico de Anomalías -->
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                    <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4">Volumen de Anomalías por Jornada</h3>
+                    <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4">Volumen de Anomalías por Jornada</h3>
                     <div class="h-64 relative">
                         <canvas id="chartAnomalies"></canvas>
                     </div>
                 </div>
             </div>
 
-            <!-- RANKINGS DE CONTRALORÍA Y SEMÁFORO DE RIESGO -->
+            <!-- RANKINGS DE CONTRALORÍA Y SEMÁFORO DE RIESGO DIARIO -->
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
                 <!-- Rankings Izquierda -->
                 <div class="lg:col-span-5 space-y-6">
                     <!-- Ranking Desviación -->
                     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                        <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5 text-rose-600">
+                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5 text-rose-600">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M12 7a1 1 0 110-2h5a1 1 0 011 1v5a1 1 0 11-2 0V8.414l-4.293 4.293a1 1 0 01-1.414 0L8 10.414l-4.293 4.293a1 1 0 01-1.414-1.414l5-5a1 1 0 011.414 0L11 10.586 14.586 7H12z" clip-rule="evenodd" />
                             </svg>
@@ -228,11 +337,11 @@
 
                     <!-- Ranking Sospechosos -->
                     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                        <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5 text-amber-600">
+                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-3 flex items-center gap-1.5 text-amber-600">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                                 <path fill-rule="evenodd" d="M11.3 1.046A1 1 0 0112 2v5h4a1 1 0 01.82 1.573l-7 10A1 1 0 018 18v-5H4a1 1 0 01-.82-1.573l7-10a1 1 0 011.12-.38z" clip-rule="evenodd" />
                             </svg>
-                            Ranking: Mayor Densidad de Anomalías
+                            Ranking: Días con más Registros Sospechosos
                         </h3>
                         <div class="divide-y divide-slate-100" id="ranking-anomalias-container">
                             <!-- Inyectado dinámicamente -->
@@ -241,35 +350,37 @@
                 </div>
 
                 <!-- Semáforo de Riesgo Diario Derecha -->
-                <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                    <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-4">
-                        <div>
-                            <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Matriz Semáforo de Riesgo Diario</h3>
-                            <p class="text-xs text-slate-400">Haga clic en una fila para desplegar su análisis técnico exhaustivo</p>
+                <div class="lg:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col justify-between">
+                    <div>
+                        <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-2 mb-4">
+                            <div>
+                                <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Matriz Semáforo de Riesgo Diario</h3>
+                                <p class="text-[11px] text-slate-400 mt-0.5">Haga clic en una fila para abrir su análisis detallado</p>
+                            </div>
+                            <div class="flex gap-1.5 flex-wrap">
+                                <span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded bg-green-50 text-green-700 border border-green-200">Coherente</span>
+                                <span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200">Moderada</span>
+                                <span class="inline-flex items-center text-[10px] font-bold px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">Grave</span>
+                            </div>
                         </div>
-                        <div class="flex gap-2">
-                            <span class="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded bg-green-100 text-green-800">Coherente</span>
-                            <span class="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-800">Modera</span>
-                            <span class="inline-flex items-center text-[10px] font-semibold px-2 py-0.5 rounded bg-rose-100 text-rose-800">Crítico</span>
+                        
+                        <div class="overflow-x-auto scrollbar-custom border border-slate-100 rounded-lg">
+                            <table class="min-w-full divide-y divide-slate-200">
+                                <thead class="bg-slate-50 font-mono text-[10px]">
+                                    <tr>
+                                        <th class="px-4 py-3 text-left font-sans text-[10px] font-bold text-slate-400 uppercase tracking-wider">Fecha</th>
+                                        <th class="px-4 py-3 text-right font-bold text-slate-400 uppercase tracking-wider">Peso Neto (kg)</th>
+                                        <th class="px-4 py-3 text-right font-bold text-slate-400 uppercase tracking-wider">Planta (kg)</th>
+                                        <th class="px-4 py-3 text-right font-bold text-slate-400 uppercase tracking-wider">Desv. (%)</th>
+                                        <th class="px-4 py-3 text-center font-bold text-slate-400 uppercase tracking-wider font-sans">Alertas</th>
+                                        <th class="px-4 py-3 text-center font-bold text-slate-400 uppercase tracking-wider font-sans">Riesgo</th>
+                                    </tr>
+                                </thead>
+                                <tbody class="divide-y divide-slate-100" id="semaphore-tbody">
+                                    <!-- Inyectado dinámicamente -->
+                                </tbody>
+                            </table>
                         </div>
-                    </div>
-                    
-                    <div class="overflow-x-auto scrollbar-custom">
-                        <table class="min-w-full divide-y divide-slate-200">
-                            <thead class="bg-slate-50">
-                                <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Fecha</th>
-                                    <th class="px-4 py-3 text-right text-xs font-bold text-slate-400 uppercase tracking-wider">P. Neto (kg)</th>
-                                    <th class="px-4 py-3 text-right text-xs font-bold text-slate-400 uppercase tracking-wider">Planta (kg)</th>
-                                    <th class="px-4 py-3 text-right text-xs font-bold text-slate-400 uppercase tracking-wider">Desv. (%)</th>
-                                    <th class="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Alertas</th>
-                                    <th class="px-4 py-3 text-center text-xs font-bold text-slate-400 uppercase tracking-wider">Riesgo</th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-slate-100" id="semaphore-tbody">
-                                <!-- Inyectado dinámicamente -->
-                            </tbody>
-                        </table>
                     </div>
                 </div>
 
@@ -280,19 +391,19 @@
         <!-- ==================== VISTA 2: DETALLE POR DÍA ==================== -->
         <div id="view-detalle" class="hidden space-y-6">
             
-            <!-- Selector de Fecha y Cabecera de Detalle -->
+            <!-- Cabecera de Detalle con Selector de Día -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col sm:flex-row justify-between items-center gap-4">
                 <div class="space-y-1">
-                    <span class="text-xs font-bold text-blue-600 uppercase tracking-widest block">Análisis Técnico Detallado</span>
-                    <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
-                        Fecha Seleccionada: 
-                        <select id="detalle-fecha-select" onchange="onDetailDateChanged()" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold px-3 py-1 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
+                    <span class="text-xs font-bold text-blue-600 uppercase tracking-widest block font-mono">Análisis Técnico Detallado</span>
+                    <h2 class="text-xl font-bold text-slate-800 flex flex-wrap items-center gap-2">
+                        Jornada Analizada: 
+                        <select id="detalle-fecha-select" onchange="onDetailDateChanged()" class="bg-slate-100 hover:bg-slate-200 text-slate-800 font-black px-3 py-1 rounded-lg border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer">
                             <!-- Inyectado dinámicamente -->
                         </select>
                     </h2>
                     <p class="text-xs text-slate-500 flex items-center gap-2">
-                        <span class="font-semibold text-slate-700" id="det-header-proyecto">Proyecto: Navarra</span> | 
-                        <span class="font-semibold text-slate-700" id="det-header-matricula">Vehículo: 7461KPW</span>
+                        <span class="font-semibold text-slate-700" id="det-header-proyecto">-</span> | 
+                        <span class="font-semibold text-slate-700" id="det-header-matricula">-</span>
                     </p>
                 </div>
                 <button onclick="switchTab('dashboard')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold px-4 py-2 rounded-lg transition border border-slate-200 flex items-center gap-1.5">
@@ -303,121 +414,121 @@
                 </button>
             </div>
 
-            <!-- KPIs DIARIOS -->
+            <!-- Resumen de KPIs Principales del Día -->
             <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-                    <span class="block text-xs font-semibold text-slate-400">Total Neto Pesadas</span>
-                    <span class="block text-lg font-extrabold text-slate-900 mt-1" id="det-kpi-neto">0 kg</span>
+                    <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide">Neto Pesadas</span>
+                    <span class="block text-lg font-black text-slate-900 mt-1 font-mono" id="det-kpi-neto">0 kg</span>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-                    <span class="block text-xs font-semibold text-slate-400">Total Real Planta</span>
-                    <span class="block text-lg font-extrabold text-slate-900 mt-1" id="det-kpi-planta">0 kg</span>
+                    <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide">Real Planta</span>
+                    <span class="block text-lg font-black text-slate-900 mt-1 font-mono" id="det-kpi-planta">0 kg</span>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-                    <span class="block text-xs font-semibold text-slate-400">Diferencia Neta</span>
-                    <span class="block text-lg font-extrabold mt-1 text-slate-900" id="det-kpi-diff">0 kg</span>
+                    <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide">Diferencia Neto</span>
+                    <span class="block text-lg font-black mt-1 text-slate-900 font-mono" id="det-kpi-diff">0 kg</span>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-                    <span class="block text-xs font-semibold text-slate-400">Desviación</span>
-                    <span class="block text-lg font-extrabold mt-1 text-slate-900" id="det-kpi-desv">0.00%</span>
+                    <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide">Desviación</span>
+                    <span class="block text-lg font-black mt-1 text-slate-900 font-mono" id="det-kpi-desv">0.00%</span>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-                    <span class="block text-xs font-semibold text-slate-400">Registros del Día</span>
-                    <span class="block text-lg font-extrabold text-slate-900 mt-1" id="det-kpi-count">0</span>
+                    <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide font-sans">Registros</span>
+                    <span class="block text-lg font-black text-slate-900 mt-1 font-mono" id="det-kpi-count">0</span>
                 </div>
                 <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
-                    <span class="block text-xs font-semibold text-slate-400">Sospechosos</span>
-                    <span class="block text-lg font-extrabold text-slate-900 mt-1" id="det-kpi-susp">0</span>
+                    <span class="block text-[10px] font-bold text-slate-400 uppercase tracking-wide font-sans">Sospechosos</span>
+                    <span class="block text-lg font-black text-rose-600 mt-1 font-mono" id="det-kpi-susp">0</span>
                 </div>
             </div>
 
-            <!-- TABLERO DE REGLAS DE AUDITORÍA LOGÍSTICA -->
+            <!-- Tablero Dinámico de Detección de Anomalías -->
             <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 flex items-center gap-1.5">
+                <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2 flex items-center gap-1.5">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
                     </svg>
-                    Inspección Automática de Seguridad (Reglas de Auditoría)
+                    Resultados de Inspección de Auditoría (Reglas Técnicas de Control)
                 </h3>
                 
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4" id="rules-cards-container">
-                    <!-- Regla 10 segundos -->
+                    <!-- Regla de 10 segundos -->
                     <div class="border rounded-xl p-4 flex flex-col justify-between" id="rule-card-time">
                         <div>
-                            <span class="block text-xs font-bold uppercase text-slate-400">Regla Frecuencia</span>
-                            <h4 class="text-sm font-bold text-slate-800 mt-1">Pickups &lt; 10s</h4>
-                            <p class="text-xs text-slate-500 mt-1">Detección de descargas o recogidas instantáneas consecutivas.</p>
+                            <span class="block text-[10px] font-bold uppercase text-slate-400">Regla Frecuencia</span>
+                            <h4 class="text-xs font-bold text-slate-800 mt-1">Pickups &lt; 10s</h4>
+                            <p class="text-[11px] text-slate-500 mt-1">Analiza diferencias menores al umbral configurado.</p>
                         </div>
-                        <span class="mt-3 text-xs font-bold inline-block" id="rule-status-time">-</span>
+                        <span class="mt-3 text-[10px] font-bold inline-block" id="rule-status-time">-</span>
                     </div>
 
                     <!-- Regla Pesos Imposibles -->
                     <div class="border rounded-xl p-4 flex flex-col justify-between" id="rule-card-impossible">
                         <div>
-                            <span class="block text-xs font-bold uppercase text-slate-400">Regla Capacidad</span>
-                            <h4 class="text-sm font-bold text-slate-800 mt-1">Registros Imposibles</h4>
-                            <p class="text-xs text-slate-500 mt-1">Registros de peso cero, negativos o que superan la tara máxima útil del camión.</p>
+                            <span class="block text-[10px] font-bold uppercase text-slate-400">Regla Capacidad</span>
+                            <h4 class="text-xs font-bold text-slate-800 mt-1">Valores Imposibles</h4>
+                            <p class="text-[11px] text-slate-500 mt-1">Valores nulos, negativos o que exceden la carga útil del camión.</p>
                         </div>
-                        <span class="mt-3 text-xs font-bold inline-block" id="rule-status-impossible">-</span>
+                        <span class="mt-3 text-[10px] font-bold inline-block" id="rule-status-impossible">-</span>
                     </div>
 
                     <!-- Regla Pesos Repetidos -->
                     <div class="border rounded-xl p-4 flex flex-col justify-between" id="rule-card-repeated">
                         <div>
-                            <span class="block text-xs font-bold uppercase text-slate-400">Regla de Sensor</span>
-                            <h4 class="text-sm font-bold text-slate-800 mt-1">Pesos Repetidos</h4>
-                            <p class="text-xs text-slate-500 mt-1">Alertas por valores de peso idénticos de manera consecutiva (sensor trabado).</p>
+                            <span class="block text-[10px] font-bold uppercase text-slate-400">Regla de Sensor</span>
+                            <h4 class="text-xs font-bold text-slate-800 mt-1">Pesos Repetidos</h4>
+                            <p class="text-[11px] text-slate-500 mt-1">Pesajes consecutivos idénticos gramo a gramo (bloqueo de celda).</p>
                         </div>
-                        <span class="mt-3 text-xs font-bold inline-block" id="rule-status-repeated">-</span>
+                        <span class="mt-3 text-[10px] font-bold inline-block" id="rule-status-repeated">-</span>
                     </div>
 
                     <!-- Regla Secuencias Repetidas -->
                     <div class="border rounded-xl p-4 flex flex-col justify-between" id="rule-card-sequence">
                         <div>
-                            <span class="block text-xs font-bold uppercase text-slate-400">Regla Operativa</span>
-                            <h4 class="text-sm font-bold text-slate-800 mt-1">Secuencias Clónicas</h4>
-                            <p class="text-xs text-slate-500 mt-1">Patrones de pesos idénticos consecutivos por ciclos.</p>
+                            <span class="block text-[10px] font-bold uppercase text-slate-400">Regla de Patrón</span>
+                            <h4 class="text-xs font-bold text-slate-800 mt-1">Secuencias Repetidas</h4>
+                            <p class="text-[11px] text-slate-500 mt-1">Detección de patrones clónicos de transporte cíclico.</p>
                         </div>
-                        <span class="mt-3 text-xs font-bold inline-block" id="rule-status-sequence">-</span>
+                        <span class="mt-3 text-[10px] font-bold inline-block" id="rule-status-sequence">-</span>
                     </div>
 
                     <!-- Regla Duplicados -->
                     <div class="border rounded-xl p-4 flex flex-col justify-between" id="rule-card-duplicate">
                         <div>
-                            <span class="block text-xs font-bold uppercase text-slate-400">Regla de Redundancia</span>
-                            <h4 class="text-sm font-bold text-slate-800 mt-1">Duplicidades</h4>
-                            <p class="text-xs text-slate-500 mt-1">Misma fecha y hora registrada en dos pesadas.</p>
+                            <span class="block text-[10px] font-bold uppercase text-slate-400">Regla Redundancia</span>
+                            <h4 class="text-xs font-bold text-slate-800 mt-1">Duplicidades</h4>
+                            <p class="text-[11px] text-slate-500 mt-1">Registros clonados con la misma estampa de tiempo.</p>
                         </div>
-                        <span class="mt-3 text-xs font-bold inline-block" id="rule-status-duplicate">-</span>
+                        <span class="mt-3 text-[10px] font-bold inline-block" id="rule-status-duplicate">-</span>
                     </div>
                 </div>
             </div>
 
-            <!-- TABLA DE DETALLE DIARIO Y CONCILIACIÓN -->
+            <!-- TABLA DE REGISTROS Y BALANCE DIARIO -->
             <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
                 
-                <!-- Tabla Principal Filtros (8 Columnas de ancho) -->
+                <!-- Tabla de Registros Reales Filtrable (8 Columnas de ancho) -->
                 <div class="lg:col-span-8 bg-white rounded-xl shadow-sm border border-slate-200 p-5 flex flex-col">
                     <div class="flex flex-col sm:flex-row justify-between sm:items-center gap-3 mb-4">
-                        <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider">Registros Detallados del Día</h3>
+                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider">Registros Reales Capturados</h3>
                         
-                        <!-- Pestañas Filtros de Registro -->
+                        <!-- Filtros Rápidos -->
                         <div class="flex bg-slate-100 p-1 rounded-lg border border-slate-200 self-start sm:self-auto">
-                            <button onclick="setDetailFilter('all')" id="filter-btn-all" class="text-xs font-bold px-3 py-1.5 rounded-md transition-all bg-white text-slate-800 shadow-sm">Todos</button>
-                            <button onclick="setDetailFilter('valid')" id="filter-btn-valid" class="text-xs font-bold px-3 py-1.5 rounded-md transition-all text-slate-500 hover:text-slate-800">Válidos</button>
-                            <button onclick="setDetailFilter('invalid')" id="filter-btn-invalid" class="text-xs font-bold px-3 py-1.5 rounded-md transition-all text-slate-500 hover:text-slate-800">Anomalías</button>
+                            <button onclick="setDetailFilter('all')" id="filter-btn-all" class="text-[11px] font-bold px-3 py-1.5 rounded-md transition-all bg-white text-slate-800 shadow-sm">Todos</button>
+                            <button onclick="setDetailFilter('valid')" id="filter-btn-valid" class="text-[11px] font-bold px-3 py-1.5 rounded-md transition-all text-slate-500 hover:text-slate-800 font-medium">Solo Válidos</button>
+                            <button onclick="setDetailFilter('invalid')" id="filter-btn-invalid" class="text-[11px] font-bold px-3 py-1.5 rounded-md transition-all text-slate-500 hover:text-slate-800 font-medium">Solo Anomalías</button>
                         </div>
                     </div>
 
-                    <!-- Tabla del Día -->
+                    <!-- Tabla de Datos -->
                     <div class="overflow-x-auto scrollbar-custom border border-slate-100 rounded-lg">
                         <table class="min-w-full divide-y divide-slate-200">
-                            <thead class="bg-slate-50">
+                            <thead class="bg-slate-50 font-mono text-[10px]">
                                 <tr>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider"># ID</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Timestamp</th>
-                                    <th class="px-4 py-3 text-right text-xs font-bold text-slate-400 uppercase tracking-wider">Peso (kg)</th>
-                                    <th class="px-4 py-3 text-left text-xs font-bold text-slate-400 uppercase tracking-wider">Estado de Verificación / Motivo del Dictamen</th>
+                                    <th class="px-4 py-3 text-left font-sans text-[10px] font-bold text-slate-400 uppercase tracking-wider">ID Registro</th>
+                                    <th class="px-4 py-3 text-left font-bold text-slate-400 uppercase tracking-wider">Fecha y Hora</th>
+                                    <th class="px-4 py-3 text-right font-bold text-slate-400 uppercase tracking-wider">Peso Neto</th>
+                                    <th class="px-4 py-3 text-left font-sans text-[10px] font-bold text-slate-400 uppercase tracking-wider">Motivo de Verificación Técnico / Alerta</th>
                                 </tr>
                             </thead>
                             <tbody class="divide-y divide-slate-100" id="detail-tbody">
@@ -425,14 +536,15 @@
                             </tbody>
                         </table>
                     </div>
-                    <div class="text-right text-xs text-slate-400 mt-2 font-medium" id="det-table-summary-lbl">Mostrando 0 registros</div>
+                    <div class="text-right text-[10px] text-slate-400 mt-2 font-bold" id="det-table-summary-lbl">Mostrando 0 registros</div>
                 </div>
 
-                <!-- Balance y Conclusión (4 Columnas de ancho) -->
+                <!-- Balance de Conciliación y Dictamen Técnico (4 Columnas de ancho) -->
                 <div class="lg:col-span-4 space-y-6">
+                    
                     <!-- Balance de Conciliación -->
                     <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-5">
-                        <h3 class="text-sm font-bold text-slate-700 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Balance de Conciliación de Carga</h3>
+                        <h3 class="text-xs font-bold text-slate-700 uppercase tracking-wider mb-4 border-b border-slate-100 pb-2">Balance Técnico de Conciliación</h3>
                         
                         <div class="space-y-3 font-mono text-xs">
                             <div class="flex justify-between items-center py-1.5 border-b border-dashed border-slate-100">
@@ -452,32 +564,32 @@
                                 <span class="font-bold" id="bal-real">0 kg</span>
                             </div>
                             <div class="flex justify-between items-center py-2 border-b border-double border-slate-200 px-2 rounded font-bold text-slate-800 text-sm" id="bal-diff-row">
-                                <span class="font-sans">5. (Δ) Desvío Inexplicable</span>
+                                <span class="font-sans">5. (Δ) Desvío Residual Restante</span>
                                 <span id="bal-remaining">0 kg</span>
                             </div>
                         </div>
 
-                        <!-- Estado Final de Conciliación -->
+                        <!-- Estado de la Conciliación -->
                         <div class="mt-4 p-3 rounded-xl flex flex-col items-center justify-center text-center gap-1" id="bal-status-box">
-                            <span class="text-[10px] uppercase font-extrabold tracking-widest" id="bal-status-badge">Conciliación Completa</span>
-                            <span class="text-lg font-black" id="bal-status-percent">0.00%</span>
-                            <span class="text-[10px] text-center" id="bal-status-desc">Desviación final reducida a parámetros tolerables.</span>
+                            <span class="text-[10px] uppercase font-black tracking-widest" id="bal-status-badge">-</span>
+                            <span class="text-lg font-black font-mono" id="bal-status-percent">0.00%</span>
+                            <span class="text-[10px] text-center leading-normal" id="bal-status-desc">-</span>
                         </div>
                     </div>
 
-                    <!-- Conclusión Técnica Automatizada -->
+                    <!-- Dictamen Técnico Automatizado -->
                     <div class="bg-slate-900 text-white rounded-xl shadow-md border border-slate-800 p-5 relative overflow-hidden">
-                        <div class="absolute -right-12 -top-12 text-slate-800 opacity-20 pointer-events-none">
+                        <div class="absolute -right-12 -top-12 text-slate-850 opacity-20 pointer-events-none">
                             <svg xmlns="http://www.w3.org/2000/svg" class="h-40 w-40" fill="currentColor" viewBox="0 0 24 24">
                                 <path d="M13 14.725c0-5.141 3.892-10.519 10-11.725l.944 2c-3.077 1.183-4.944 3.42-4.944 5.725h4v8h-10v-4zm-13 0c0-5.141 3.892-10.519 10-11.725l.944 2c-3.077 1.183-4.944 3.42-4.944 5.725h4v8h-10v-4z"/>
                             </svg>
                         </div>
-                        <h3 class="text-xs font-bold text-blue-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
+                        <h3 class="text-[10px] font-bold text-blue-400 uppercase tracking-widest mb-3 flex items-center gap-1.5">
                             <span class="w-2 h-2 rounded-full bg-blue-500 animate-pulse"></span>
                             Dictamen Técnico del Algoritmo
                         </h3>
                         <p class="text-xs text-slate-300 leading-relaxed font-sans text-justify" id="auto-conclusion-text">
-                            Generando conclusión del análisis diario...
+                            No se han cargado datos reales aún.
                         </p>
                     </div>
                 </div>
@@ -488,91 +600,27 @@
 
     </main>
 
-    <!-- FOOTER INFORMAL -->
+    <!-- FOOTER -->
     <footer class="bg-slate-950 text-slate-500 border-t border-slate-900 py-6 mt-12">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-medium">
-            <p>© 2026 AUDIT-PRO Logística S.A. Todos los derechos reservados.</p>
+            <p>© 2026 AUDIT-PRO Logística S.A. Solución de Producción Integrada.</p>
             <div class="flex gap-4">
-                <span class="text-slate-400">V2.4 Enterprise Clean</span>
+                <span class="text-slate-400">Analizador Real Agnóstico Universal</span>
                 <span class="text-slate-700">|</span>
-                <a href="#" onclick="toggleConfigModal()" class="hover:text-slate-300 transition">Configurar Tolerancias</a>
+                <a href="#" onclick="toggleConfigModal()" class="hover:text-slate-300 transition">Ajustar Tolerancias</a>
             </div>
         </div>
     </footer>
 
 
-    <!-- MODAL 1: IMPORTACIÓN DE ARCHIVOS Y REUTILIZACIÓN -->
-    <div id="modal-import" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
-        <div class="bg-white rounded-2xl max-w-lg w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all flex flex-col max-h-[90vh]">
-            
-            <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center border-b border-slate-800">
-                <div>
-                    <h3 class="text-md font-bold">Importar Datos de Pesadas</h3>
-                    <p class="text-[10px] text-slate-400">Reutilice este sistema para cualquier proyecto y vehículo</p>
-                </div>
-                <button onclick="closeImportModal()" class="text-slate-400 hover:text-white transition">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                </button>
-            </div>
-
-            <div class="p-6 space-y-4 overflow-y-auto scrollbar-custom">
-                <!-- Información Reusabilidad -->
-                <div class="bg-blue-50 rounded-xl p-4 border border-blue-100 text-xs text-blue-800 space-y-2">
-                    <p class="font-bold">¿Cómo estructurar los datos?</p>
-                    <p class="text-justify leading-relaxed">Este sistema de auditoría es agnóstico y dinámico. Al cargar un nuevo archivo JSON o configurar las variables manuales, el motor de análisis recalcula instantáneamente todas las métricas, KPIs y gráficos.</p>
-                </div>
-
-                <!-- Formulario Campos -->
-                <div class="space-y-3">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Nombre del Proyecto</label>
-                        <input id="import-proyecto" type="text" value="Auditoría Planta de Reciclaje Sur" class="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                    </div>
-                    <div class="grid grid-cols-2 gap-3">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Matrícula del Camión</label>
-                            <input id="import-matricula" type="text" value="9834-KPB" class="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                        </div>
-                        <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Rango Fechas Simulador</label>
-                            <select id="import-dates-count" class="w-full text-xs font-medium bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-blue-500 focus:outline-none">
-                                <option value="5">Simular 5 Días</option>
-                                <option value="8" selected>Simular 8 Días</option>
-                                <option value="15">Simular 15 Días</option>
-                            </select>
-                        </div>
-                    </div>
-                    
-                    <!-- Carga de Archivos -->
-                    <div class="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-slate-300 transition-all flex flex-col items-center justify-center cursor-pointer relative">
-                        <svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-slate-300 mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                        <span class="text-xs font-semibold text-slate-700 block">Subir Archivo de Auditoría JSON</span>
-                        <span class="text-[10px] text-slate-400 block mt-1">Estructura esperada: Array de objetos {timestamp, peso_neto}</span>
-                        <input type="file" id="import-file-input" accept=".json" onchange="handleFileUpload(event)" class="absolute inset-0 opacity-0 cursor-pointer">
-                    </div>
-
-                    <!-- Botón Generar para Demostración -->
-                    <button onclick="generateCustomDataset()" class="w-full py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs rounded-xl shadow-lg transition">
-                        Generar Nueva Auditoría Basada en Datos
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-
-    <!-- MODAL 2: CONFIGURACIÓN DE PARÁMETROS DE REGLAS -->
+    <!-- MODAL AJUSTES DE TOLERANCIA / MOTOR ANALÍTICO -->
     <div id="modal-config" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50 hidden">
         <div class="bg-white rounded-2xl max-w-md w-full shadow-2xl border border-slate-200 overflow-hidden transform transition-all flex flex-col">
             
-            <div class="bg-slate-900 text-white px-6 py-4 flex justify-between items-center border-b border-slate-800">
+            <div class="bg-slate-950 text-white px-6 py-4 flex justify-between items-center border-b border-slate-800">
                 <div>
-                    <h3 class="text-md font-bold">Ajustes del Motor de Análisis</h3>
-                    <p class="text-[10px] text-slate-400">Configuración avanzada de tolerancias y reglas de auditoría</p>
+                    <h3 class="text-sm font-bold">Ajustes del Motor de Análisis</h3>
+                    <p class="text-[10px] text-slate-400">Tolerancias de auditoría y análisis de duplicidades</p>
                 </div>
                 <button onclick="toggleConfigModal()" class="text-slate-400 hover:text-white transition">
                     <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -586,37 +634,37 @@
                     <!-- Umbral Regla Frecuencia -->
                     <div>
                         <div class="flex justify-between items-center mb-1">
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Regla de Frecuencia Temporal</label>
-                            <span class="text-xs font-bold text-blue-600" id="conf-val-seconds">10s</span>
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider">Frecuencia Temporal Crítica</label>
+                            <span class="text-xs font-bold text-blue-600 font-mono" id="conf-val-seconds">10s</span>
                         </div>
                         <input type="range" id="conf-slider-seconds" min="3" max="60" value="10" oninput="document.getElementById('conf-val-seconds').innerText = this.value + 's'" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
-                        <span class="text-[9px] text-slate-400 block mt-1">Margen mínimo requerido en segundos entre dos registros para darlos por válidos.</span>
+                        <span class="text-[9px] text-slate-400 block mt-1">Margen requerido en segundos entre dos registros para darlos por válidos.</span>
                     </div>
 
                     <!-- Umbral Capacidad Vehículo -->
                     <div>
                         <div class="flex justify-between items-center mb-1">
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider">Límite Máximo de Carga Útil (TARA)</label>
-                            <span class="text-xs font-bold text-blue-600" id="conf-val-capacity">12.000 kg</span>
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider">Límite Máximo de Carga Útil (TARA)</label>
+                            <span class="text-xs font-bold text-blue-600 font-mono" id="conf-val-capacity">12.000 kg</span>
                         </div>
                         <input type="range" id="conf-slider-capacity" min="5000" max="40000" step="500" value="12000" oninput="document.getElementById('conf-val-capacity').innerText = parseInt(this.value).toLocaleString('es-ES') + ' kg'" class="w-full h-1 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600">
-                        <span class="text-[9px] text-slate-400 block mt-1">Capacidad máxima del camión. Los registros que la excedan se marcarán en Rojo (Imposibles).</span>
+                        <span class="text-[9px] text-slate-400 block mt-1">Registros superiores se marcarán en Rojo (Físicamente Imposibles).</span>
                     </div>
 
                     <!-- Alertas de Riesgo Semáforo -->
                     <div class="grid grid-cols-2 gap-4">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Riesgo Moderado (Naranja)</label>
-                            <div class="flex items-center gap-1.5">
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Riesgo Moderado (Naranja)</label>
+                            <div class="flex items-center gap-1.5 font-mono">
                                 <input type="number" id="conf-risk-moderate" value="2" min="1" max="10" class="w-16 text-xs font-bold bg-slate-50 border border-slate-200 rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                <span class="text-xs font-bold text-slate-400">% Desv.</span>
+                                <span class="text-xs font-bold text-slate-400 font-sans">% Desv.</span>
                             </div>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-1">Riesgo Crítico (Rojo)</label>
-                            <div class="flex items-center gap-1.5">
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Riesgo Crítico (Rojo)</label>
+                            <div class="flex items-center gap-1.5 font-mono">
                                 <input type="number" id="conf-risk-grave" value="5" min="2" max="30" class="w-16 text-xs font-bold bg-slate-50 border border-slate-200 rounded p-1.5 focus:outline-none focus:ring-1 focus:ring-blue-500">
-                                <span class="text-xs font-bold text-slate-400">% Desv.</span>
+                                <span class="text-xs font-bold text-slate-400 font-sans">% Desv.</span>
                             </div>
                         </div>
                     </div>
@@ -633,56 +681,654 @@
 
     <!-- MOTOR DE LOGICA SCRIPT -->
     <script>
+        // Configurar ruta del worker de PDFJS de forma estricta para procesamiento en hilos locales
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
         // --- ESTADO GENERAL DE LA APLICACIÓN ---
         let appState = {
-            proyecto: "Navarra - Tramo Cáseda-Gallipienzo",
-            matricula: "7461KPW",
-            daysCount: 8,
+            proyecto: "",
+            matricula: "",
             activeTab: "dashboard",
             activeDate: "",
-            detailFilter: "all", // all, valid, invalid
+            detailFilter: "all",
             config: {
                 minSeconds: 10,
                 maxWeight: 12000,
                 riskModeratePercent: 2,
                 riskGravePercent: 5
             },
-            // Datos brutos cargados
-            rawData: [],
-            // Datos agrupados y calculados por día
+            files: {
+                pesadas: { rawData: [], headers: [], parsedRows: [] },
+                planta: { rawData: [], headers: [], parsedRows: [] }
+            },
             processedDays: {}
         };
 
-        // --- REFERENCIAS DE GRÁFICOS (CHART.JS) ---
+        // Referencias de gráficos Chart.js
         let charts = {
             weights: null,
             deviations: null,
             anomalies: null
         };
 
-        // --- PLANTILLAS DE DATOS DEMO REALISTAS ---
-        const DEMO_TEMPLATES = {
-            navarra: {
-                proyecto: "Navarra - Tramo Cáseda-Gallipienzo",
-                matricula: "7461KPW",
-                daysCount: 8,
-                // El algoritmo generará datos basados en patrones específicos para Navarra
-                seed: 0.15
-            },
-            andalucia: {
-                proyecto: "Auditoría Planta Reciclaje Antequera",
-                matricula: "5320FDL",
-                daysCount: 6,
-                seed: 0.42
+        // --- SISTEMA DE TOASTS ---
+        function showToast(title, text, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            
+            let bgClass = "bg-white border-slate-200 shadow-md";
+            let iconColor = "text-blue-500";
+            let iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
+
+            if (type === 'error') {
+                bgClass = "bg-rose-50 border-rose-200 shadow-rose-100/50 shadow-lg";
+                iconColor = "text-rose-500";
+                iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" /></svg>`;
+            } else if (type === 'success') {
+                bgClass = "bg-emerald-50 border-emerald-200 shadow-emerald-100/50 shadow-lg";
+                iconColor = "text-emerald-500";
+                iconSvg = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>`;
             }
-        };
 
-        // --- INICIALIZACIÓN DE LA APLICACIÓN ---
-        window.onload = function() {
-            loadTemplateData('navarra');
-        };
+            toast.className = `p-4 rounded-xl border flex gap-3 max-w-sm w-full transition-all duration-300 transform translate-y-2 opacity-0 bg-white pointer-events-auto ${bgClass}`;
+            toast.innerHTML = `
+                <div class="${iconColor}">${iconSvg}</div>
+                <div class="flex-grow space-y-0.5">
+                    <h4 class="text-xs font-bold text-slate-800">${title}</h4>
+                    <p class="text-[10px] text-slate-500 leading-normal font-medium">${text}</p>
+                </div>
+            `;
+            container.appendChild(toast);
+            
+            setTimeout(() => {
+                toast.classList.remove('translate-y-2', 'opacity-0');
+            }, 10);
 
-        // Cambiar entre pestañas
+            setTimeout(() => {
+                toast.classList.add('translate-y-2', 'opacity-0');
+                setTimeout(() => toast.remove(), 400);
+            }, 6000);
+        }
+
+        // --- PARSEADOR XML ---
+        function parseXMLData(text) {
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(text, "text/xml");
+            
+            const errorNode = xmlDoc.querySelector("parsererror");
+            if (errorNode) {
+                throw new Error("Formato XML mal estructurado.");
+            }
+
+            // Buscar elementos repetitivos en cualquier nivel del XML
+            const allElements = xmlDoc.getElementsByTagName("*");
+            const counts = {};
+            for (let i = 0; i < allElements.length; i++) {
+                const name = allElements[i].nodeName;
+                counts[name] = (counts[name] || 0) + 1;
+            }
+
+            // Heurística para encontrar el nodo de registros repetidos
+            let recordTag = null;
+            let maxRepeat = 0;
+            for (const tag in counts) {
+                if (counts[tag] > maxRepeat && tag !== xmlDoc.documentElement.nodeName) {
+                    const sampleElements = xmlDoc.getElementsByTagName(tag);
+                    // Debe tener hijos o atributos para ser considerado un nodo de datos
+                    if (sampleElements[0] && (sampleElements[0].children.length > 0 || sampleElements[0].attributes.length > 0)) {
+                        recordTag = tag;
+                        maxRepeat = counts[tag];
+                    }
+                }
+            }
+
+            let nodes = [];
+            if (recordTag) {
+                nodes = xmlDoc.getElementsByTagName(recordTag);
+            } else {
+                nodes = xmlDoc.documentElement.children;
+            }
+
+            const headersSet = new Set();
+            const jsonResult = [];
+
+            for (let i = 0; i < nodes.length; i++) {
+                const node = nodes[i];
+                const obj = {};
+
+                // Extraer de atributos
+                for (let j = 0; j < node.attributes.length; j++) {
+                    const attr = node.attributes[j];
+                    obj[attr.nodeName] = attr.nodeValue;
+                    headersSet.add(attr.nodeName);
+                }
+
+                // Extraer de hijos simples
+                for (let j = 0; j < node.children.length; j++) {
+                    const child = node.children[j];
+                    if (child.children.length === 0) {
+                        obj[child.nodeName] = child.textContent.trim();
+                        headersSet.add(child.nodeName);
+                    }
+                }
+
+                if (Object.keys(obj).length > 0) {
+                    jsonResult.push(obj);
+                }
+            }
+
+            return { json: jsonResult, headers: Array.from(headersSet) };
+        }
+
+        // --- EXTRATOR DE TABLAS ESPACIALES PDF ---
+        async function parsePDFTable(arrayBuffer) {
+            const loadingTask = pdfjsLib.getDocument({ data: arrayBuffer });
+            const pdf = await loadingTask.promise;
+            const rows = [];
+            let maxCols = 0;
+
+            for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+                const page = await pdf.getPage(pageNum);
+                const textContent = await page.getTextContent();
+                const items = textContent.items;
+                
+                // Mapeo espacial por eje Y (filas espaciales)
+                const yMap = {};
+                const tolerance = 6; // Puntos de tolerancia en altura para agrupar en una misma línea
+
+                items.forEach(item => {
+                    const x = item.transform[4];
+                    const y = item.transform[5];
+                    const text = item.str.trim();
+                    if (!text) return;
+
+                    let targetY = null;
+                    for (const existingY in yMap) {
+                        if (Math.abs(parseFloat(existingY) - y) < tolerance) {
+                            targetY = existingY;
+                            break;
+                        }
+                    }
+
+                    if (targetY !== null) {
+                        yMap[targetY].push({ x, text });
+                    } else {
+                        yMap[y] = [{ x, text }];
+                    }
+                });
+
+                // Ordenar filas de arriba a abajo en la hoja
+                const sortedYs = Object.keys(yMap).sort((a, b) => parseFloat(b) - parseFloat(a));
+
+                sortedYs.forEach(y => {
+                    // Ordenar columnas de izquierda a derecha en el plano
+                    const colItems = yMap[y].sort((a, b) => a.x - b.x);
+                    
+                    // Fusionar elementos que están sumamente juntos horizontalmente (espaciado de texto)
+                    const mergedCols = [];
+                    colItems.forEach(item => {
+                        if (mergedCols.length === 0) {
+                            mergedCols.push(item);
+                        } else {
+                            const last = mergedCols[mergedCols.length - 1];
+                            const horizontalSpacing = item.x - (last.x + last.text.length * 4.5);
+                            if (horizontalSpacing < 12) {
+                                last.text += " " + item.text;
+                            } else {
+                                mergedCols.push(item);
+                            }
+                        }
+                    });
+
+                    if (mergedCols.length > 0) {
+                        const rowData = mergedCols.map(c => c.text);
+                        rows.push(rowData);
+                        if (rowData.length > maxCols) {
+                            maxCols = rowData.length;
+                        }
+                    }
+                });
+            }
+
+            // Generar cabeceras estructuradas genéricas
+            const headers = [];
+            for (let i = 0; i < maxCols; i++) {
+                headers.push(`Columna_${i + 1}`);
+            }
+
+            // Convertir filas planas a JSON relacional
+            const jsonResult = rows.map(row => {
+                const obj = {};
+                headers.forEach((h, idx) => {
+                    obj[h] = row[idx] !== undefined ? row[idx] : "";
+                });
+                return obj;
+            });
+
+            return { json: jsonResult, headers };
+        }
+
+        // --- CONTROLADOR DE ARRANQUE Y LECTURA ---
+        function processFile(fileKey) {
+            const fileInput = document.getElementById(`file-${fileKey}`);
+            const labelEl = document.getElementById(`label-${fileKey}-file`);
+            const mapperEl = document.getElementById(`mapper-${fileKey}`);
+            
+            const file = fileInput.files[0];
+            if (!file) return;
+
+            const ext = file.name.split('.').pop().toLowerCase();
+            labelEl.innerHTML = `<span class="text-blue-600 font-bold animate-pulse">Analizando formato (${ext.toUpperCase()})...</span>`;
+
+            const reader = new FileReader();
+
+            if (ext === 'pdf') {
+                reader.onload = async function(e) {
+                    try {
+                        const { json, headers } = await parsePDFTable(e.target.result);
+                        if (json.length === 0) {
+                            showToast("PDF Vacío", "No se encontró texto estructurado en el documento.", "error");
+                            labelEl.innerText = "Error: PDF ilegible";
+                            return;
+                        }
+                        handleProcessingSuccess(fileKey, json, headers, file.name);
+                    } catch (err) {
+                        console.error(err);
+                        showToast("Fallo PDF", "Error al procesar el archivo PDF espacial.", "error");
+                        labelEl.innerText = "Error al leer PDF";
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+
+            } else if (ext === 'xml') {
+                reader.onload = function(e) {
+                    try {
+                        const { json, headers } = parseXMLData(e.target.result);
+                        if (json.length === 0) {
+                            showToast("XML Sin Datos", "No se detectaron nodos estructurados de datos repetitivos.", "error");
+                            labelEl.innerText = "Error: XML sin datos";
+                            return;
+                        }
+                        handleProcessingSuccess(fileKey, json, headers, file.name);
+                    } catch (err) {
+                        console.error(err);
+                        showToast("Fallo XML", "El parseador XML detectó una estructura inválida.", "error");
+                        labelEl.innerText = "Error al leer XML";
+                    }
+                };
+                reader.readAsText(file);
+
+            } else {
+                // Excel (.xlsx, .xls) y CSV estructurado tradicional
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const sheetName = workbook.SheetNames[0];
+                        const sheet = workbook.Sheets[sheetName];
+                        const json = XLSX.utils.sheet_to_json(sheet, { defval: "" });
+                        
+                        if (json.length === 0) {
+                            showToast("Archivo Vacío", "No contiene registros legibles.", "error");
+                            labelEl.innerText = "Error: hoja sin registros";
+                            return;
+                        }
+
+                        const headers = Object.keys(json[0]);
+                        handleProcessingSuccess(fileKey, json, headers, file.name);
+                    } catch (err) {
+                        console.error(err);
+                        showToast("Error de Ingesta", "Estructura binaria incompatible.", "error");
+                        labelEl.innerText = "Error al leer archivo";
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        }
+
+        function handleProcessingSuccess(fileKey, json, headers, fileName) {
+            appState.files[fileKey].rawData = json;
+            appState.files[fileKey].headers = headers;
+
+            const labelEl = document.getElementById(`label-${fileKey}-file`);
+            const mapperEl = document.getElementById(`mapper-${fileKey}`);
+
+            showToast("Lectura Correcta", `${json.length} filas mapeadas de forma satisfactoria.`, "success");
+            labelEl.innerText = `${fileName} (${json.length} filas analizadas)`;
+
+            setupColumnMapper(fileKey, headers);
+            mapperEl.classList.remove('hidden');
+
+            validateFormState();
+        }
+
+        // --- CONFIGURADOR DE DROP-DOWNS DE COLUMNAS (MAPEO SEGURO) ---
+        function setupColumnMapper(fileKey, headers) {
+            if (fileKey === 'pesadas') {
+                const selectId = document.getElementById('map-pesadas-id');
+                const selectTs = document.getElementById('map-pesadas-timestamp');
+                const selectWeight = document.getElementById('map-pesadas-peso');
+
+                populateSelect(selectId, headers, "id", true);
+                populateSelect(selectTs, headers, "fecha");
+                populateSelect(selectWeight, headers, "peso");
+
+            } else if (fileKey === 'planta') {
+                const selectDate = document.getElementById('map-planta-fecha');
+                const selectWeight = document.getElementById('map-planta-peso');
+
+                populateSelect(selectDate, headers, "fecha");
+                populateSelect(selectWeight, headers, "peso");
+            }
+        }
+
+        function populateSelect(selectEl, headers, pattern, isOptional = false) {
+            selectEl.innerHTML = "";
+            if (isOptional) {
+                const optOpt = document.createElement('option');
+                optOpt.value = "";
+                optOpt.innerText = "--- Autogenerar ID ---";
+                selectEl.appendChild(optOpt);
+            }
+
+            let bestMatchIndex = 0;
+            headers.forEach((h, idx) => {
+                const opt = document.createElement('option');
+                opt.value = h;
+                opt.innerText = h;
+                selectEl.appendChild(opt);
+
+                const normalizedHeader = h.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+                const normalizedPattern = pattern.toLowerCase();
+                if (normalizedHeader.includes(normalizedPattern) || 
+                    (pattern === 'peso' && (normalizedHeader.includes('neto') || normalizedHeader.includes('kg') || normalizedHeader.includes('real') || normalizedHeader.includes('bascula') || normalizedHeader.includes('val')))) {
+                    bestMatchIndex = idx;
+                }
+            });
+
+            if (selectEl.options.length > bestMatchIndex) {
+                selectEl.selectedIndex = bestMatchIndex;
+            }
+        }
+
+        // --- MÓDULO DE VALIDACIÓN DE FORMULARIO DE INGESTA ---
+        function validateFormState() {
+            const hasPesadas = appState.files.pesadas.rawData.length > 0;
+            const hasPlanta = appState.files.planta.rawData.length > 0;
+            const btn = document.getElementById('btn-run-analysis');
+            
+            btn.disabled = !(hasPesadas && hasPlanta);
+        }
+
+        // --- SISTEMA AUXILIAR: ANALIZADOR DE CAMPOS DE TIEMPO ---
+        function parseTimestamp(val) {
+            if (!val) return null;
+            
+            if (typeof val === 'number') {
+                const date = new Date(Math.round((val - 25569) * 86400 * 1000));
+                return date;
+            }
+
+            const str = String(val).trim();
+            const d = new Date(str);
+            if (!isNaN(d.getTime())) return d;
+
+            const parts = str.match(/(\d+)/g);
+            if (parts && parts.length >= 3) {
+                let day = parseInt(parts[0]);
+                let month = parseInt(parts[1]) - 1;
+                let year = parseInt(parts[2]);
+                
+                if (year < 100) year += 2000;
+
+                const hour = parts[3] ? parseInt(parts[3]) : 0;
+                const min = parts[4] ? parseInt(parts[4]) : 0;
+                const sec = parts[5] ? parseInt(parts[5]) : 0;
+
+                const builtDate = new Date(year, month, day, hour, min, sec);
+                if (!isNaN(builtDate.getTime())) return builtDate;
+            }
+            return null;
+        }
+
+        function formatDateOnly(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            return `${y}-${m}-${d}`;
+        }
+
+        function formatFullTimestamp(date) {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, '0');
+            const d = String(date.getDate()).padStart(2, '0');
+            const h = String(date.getHours()).padStart(2, '0');
+            const min = String(date.getMinutes()).padStart(2, '0');
+            const s = String(date.getSeconds()).padStart(2, '0');
+            return `${y}-${m}-${d} ${h}:${min}:${s}`;
+        }
+
+
+        // --- MOTOR DE AUDITORÍA Y ANÁLISIS DE DATOS REALES ---
+        function runAnalysisEngine() {
+            const proyectoVal = document.getElementById('input-proyecto').value.trim();
+            const matriculaVal = document.getElementById('input-matricula').value.trim();
+
+            if (!proyectoVal || !matriculaVal) {
+                showToast("Faltan Campos", "El nombre de la obra y la matrícula son obligatorios.", "error");
+                return;
+            }
+
+            appState.proyecto = proyectoVal;
+            appState.matricula = matriculaVal;
+
+            const colPesadasId = document.getElementById('map-pesadas-id').value;
+            const colPesadasTs = document.getElementById('map-pesadas-timestamp').value;
+            const colPesadasPeso = document.getElementById('map-pesadas-peso').value;
+
+            const colPlantaFecha = document.getElementById('map-planta-fecha').value;
+            const colPlantaPeso = document.getElementById('map-planta-peso').value;
+
+            // 1. Procesamiento de Pesadas
+            const pesadasFinalList = [];
+            appState.files.pesadas.rawData.forEach((row, index) => {
+                const rawTs = row[colPesadasTs];
+                const rawPeso = row[colPesadasPeso];
+                const rawId = colPesadasId ? row[colPesadasId] : (1001 + index);
+
+                const dateObj = parseTimestamp(rawTs);
+                const pesoNeto = parseFloat(String(rawPeso).replace(/[^0-9.-]/g, ''));
+
+                if (dateObj && !isNaN(pesoNeto)) {
+                    pesadasFinalList.push({
+                        id: rawId,
+                        timestampObj: dateObj,
+                        timestamp: formatFullTimestamp(dateObj),
+                        dateOnly: formatDateOnly(dateObj),
+                        peso_neto: pesoNeto
+                    });
+                }
+            });
+
+            // 2. Procesamiento de Planta
+            const plantaAgrupadaPorDia = {};
+            appState.files.planta.rawData.forEach(row => {
+                const rawFecha = row[colPlantaFecha];
+                const rawPeso = row[colPlantaPeso];
+
+                const dateObj = parseTimestamp(rawFecha);
+                const pesoPlanta = parseFloat(String(rawPeso).replace(/[^0-9.-]/g, ''));
+
+                if (dateObj && !isNaN(pesoPlanta)) {
+                    const dOnly = formatDateOnly(dateObj);
+                    if (!plantaAgrupadaPorDia[dOnly]) {
+                        plantaAgrupadaPorDia[dOnly] = 0;
+                    }
+                    plantaAgrupadaPorDia[dOnly] += pesoPlanta;
+                }
+            });
+
+            if (pesadasFinalList.length === 0) {
+                showToast("Mapeo Incorrecto", "No se detectaron datos en el formato seleccionado. Corrige el mapeo de columnas.", "error");
+                return;
+            }
+
+            const daysData = {};
+            pesadasFinalList.forEach(rec => {
+                const dOnly = rec.dateOnly;
+                if (!daysData[dOnly]) {
+                    daysData[dOnly] = {
+                        date: dOnly,
+                        records: [],
+                        plantWeight: plantaAgrupadaPorDia[dOnly] || 0
+                    };
+                }
+                daysData[dOnly].records.push(rec);
+            });
+
+            // 3. Ejecución de Reglas de Auditoría
+            const processed = {};
+            
+            Object.keys(daysData).sort().forEach(dateStr => {
+                const day = daysData[dateStr];
+                const dayRecords = day.records.sort((a,b) => a.timestampObj - b.timestampObj);
+                
+                let stats = {
+                    date: dateStr,
+                    totalCount: dayRecords.length,
+                    anomaliesCount: 0,
+                    totalOriginalNet: 0,
+                    discardedWeight: 0,
+                    cleanWeight: 0,
+                    plantWeight: day.plantWeight,
+                    rules: {
+                        timeLessThan10s: { count: 0 },
+                        impossible: { count: 0 },
+                        repeatedWeights: { count: 0 },
+                        sequenceWeights: { count: 0 },
+                        duplicates: { count: 0 }
+                    },
+                    auditedRecords: []
+                };
+
+                const previousWeights = [];
+
+                dayRecords.forEach((rec, idx) => {
+                    let flags = [];
+                    let severity = 'green';
+                    let weight = rec.peso_neto;
+                    stats.totalOriginalNet += weight;
+
+                    // --- REGLA 1: Registros imposibles (Negativos o excede límite útil)
+                    if (weight <= 0 || weight > appState.config.maxWeight) {
+                        severity = 'red';
+                        flags.push({
+                            rule: 'impossible',
+                            desc: weight <= 0 ? `Peso neto inválido (${weight} kg)` : `Peso excede tara máx. del camión (${weight.toLocaleString('es-ES')} kg > ${appState.config.maxWeight.toLocaleString('es-ES')} kg)`
+                        });
+                        stats.rules.impossible.count++;
+                    }
+
+                    // --- REGLA 2: Duplicidades de marcas de tiempo
+                    const isDuplicate = dayRecords.some((r, i) => i !== idx && r.timestamp === rec.timestamp);
+                    if (isDuplicate) {
+                        severity = 'red';
+                        flags.push({
+                            rule: 'duplicate',
+                            desc: `Timestamp idéntico duplicado en pesadas (${rec.timestamp})`
+                        });
+                        stats.rules.duplicates.count++;
+                    }
+
+                    // --- REGLA 3: Tiempo entre recogidas menor al umbral (Regla 10 segundos)
+                    if (idx > 0) {
+                        const diffSec = (rec.timestampObj - dayRecords[idx - 1].timestampObj) / 1000;
+                        if (diffSec < appState.config.minSeconds && diffSec >= 0) {
+                            if (severity !== 'red') severity = 'orange';
+                            flags.push({
+                                rule: 'time',
+                                desc: `Frecuencia físicamente imposible: ${diffSec.toFixed(1)}s (Límite: ${appState.config.minSeconds}s)`
+                            });
+                            stats.rules.timeLessThan10s.count++;
+                        }
+                    }
+
+                    // --- REGLA 4: Pesos idénticos repetidos consecutivamente
+                    if (idx > 0 && weight === dayRecords[idx - 1].peso_neto && weight > 0) {
+                        if (severity !== 'red') severity = 'orange';
+                        flags.push({
+                            rule: 'repeated',
+                            desc: `Peso idéntico consecutivo al registro anterior (#${dayRecords[idx-1].id}: ${weight} kg)`
+                        });
+                        stats.rules.repeatedWeights.count++;
+                    }
+
+                    // --- REGLA 5: Secuencias repetitivas en bucle
+                    previousWeights.push(weight);
+                    if (previousWeights.length > 8) previousWeights.shift();
+                    if (previousWeights.length >= 6) {
+                        const w = previousWeights;
+                        if (w[0] === w[2] && w[2] === w[4] && w[1] === w[3] && w[3] === w[5]) {
+                            if (severity !== 'red') severity = 'orange';
+                            flags.push({
+                                rule: 'sequence',
+                                desc: `Ciclo de carga repetitivo recurrente (Patrón: ${w[0]} kg ⇄ ${w[1]} kg)`
+                            });
+                            stats.rules.sequenceWeights.count++;
+                        }
+                    }
+
+                    const isSuspicious = flags.length > 0;
+                    if (isSuspicious) {
+                        stats.anomaliesCount++;
+                        stats.discardedWeight += weight;
+                    }
+
+                    stats.auditedRecords.push({
+                        ...rec,
+                        severity,
+                        isSuspicious,
+                        reasons: flags
+                    });
+                });
+
+                stats.cleanWeight = stats.totalOriginalNet - stats.discardedWeight;
+                stats.deviationKg = stats.totalOriginalNet - stats.plantWeight;
+                stats.deviationPercent = stats.plantWeight > 0 ? (stats.deviationKg / stats.plantWeight) * 100 : 0;
+                stats.anomalyPercent = stats.totalCount > 0 ? (stats.anomaliesCount / stats.totalCount) * 100 : 0;
+                
+                stats.remainingDev = stats.cleanWeight - stats.plantWeight;
+                stats.remainingDevPercent = stats.plantWeight > 0 ? (stats.remainingDev / stats.plantWeight) * 100 : 0;
+
+                const hasRedAlerts = stats.rules.impossible.count > 0 || stats.rules.duplicates.count > 0;
+                const devAbs = Math.abs(stats.deviationPercent);
+                
+                if (devAbs >= appState.config.riskGravePercent || stats.anomalyPercent >= 10 || hasRedAlerts) {
+                    stats.riskLevel = 'red';
+                    stats.riskLabel = 'Grave / Crítico';
+                } else if (devAbs >= appState.config.riskModeratePercent || stats.anomalyPercent >= 3) {
+                    stats.riskLevel = 'orange';
+                    stats.riskLabel = 'Riesgo Moderado';
+                } else {
+                    stats.riskLevel = 'green';
+                    stats.riskLabel = 'Operación Coherente';
+                }
+
+                processed[dateStr] = stats;
+            });
+
+            appState.processedDays = processed;
+
+            showToast("Auditoría Finalizada", "Análisis relacional completado con éxito.", "success");
+            
+            document.getElementById('header-metadata-container').classList.remove('hidden');
+            document.getElementById('navigation-bar').classList.remove('hidden');
+            document.getElementById('view-ingestion').classList.add('hidden');
+            
+            switchTab('dashboard');
+        }
+
+        // --- NAVEGACIÓN ENTRE VISTAS ---
         function switchTab(tabId) {
             appState.activeTab = tabId;
             const tabDash = document.getElementById('tab-dashboard');
@@ -695,442 +1341,61 @@
                 tabDet.className = "px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all text-slate-600 hover:text-slate-800 hover:bg-slate-100 border border-transparent";
                 viewDash.classList.remove('hidden');
                 viewDet.classList.add('hidden');
-                // Forzar repintado de gráficos
-                setTimeout(renderDashboardCharts, 100);
+                
+                updateDashboardUI();
             } else {
                 tabDet.className = "px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all bg-blue-50 text-blue-700 border border-blue-100";
                 tabDash.className = "px-4 py-2 text-sm font-semibold rounded-lg flex items-center gap-2 transition-all text-slate-600 hover:text-slate-800 hover:bg-slate-100 border border-transparent";
                 viewDet.classList.remove('hidden');
                 viewDash.classList.add('hidden');
                 
-                // Si no hay fecha activa, seleccionar la primera disponible
                 if (!appState.activeDate && Object.keys(appState.processedDays).length > 0) {
-                    appState.activeDate = Object.keys(appState.processedDays)[0];
+                    appState.activeDate = Object.keys(appState.processedDays).sort()[0];
                 }
                 updateDateSelector();
                 renderDetailView();
             }
         }
 
-        // Abrir detalle de un día específico desde el semáforo o rankings
         function openDetailForDate(dateStr) {
             appState.activeDate = dateStr;
             switchTab('detalle');
         }
 
-        // Modales
-        function openImportModal() {
-            document.getElementById('modal-import').classList.remove('hidden');
-        }
-        function closeImportModal() {
-            document.getElementById('modal-import').classList.add('hidden');
-        }
-        function toggleConfigModal() {
-            const modal = document.getElementById('modal-config');
-            if (modal.classList.contains('hidden')) {
-                // Sincronizar UI del modal con estado actual
-                document.getElementById('conf-slider-seconds').value = appState.config.minSeconds;
-                document.getElementById('conf-val-seconds').innerText = appState.config.minSeconds + 's';
-                document.getElementById('conf-slider-capacity').value = appState.config.maxWeight;
-                document.getElementById('conf-val-capacity').innerText = appState.config.maxWeight.toLocaleString('es-ES') + ' kg';
-                document.getElementById('conf-risk-moderate').value = appState.config.riskModeratePercent;
-                document.getElementById('conf-risk-grave').value = appState.config.riskGravePercent;
-                modal.classList.remove('hidden');
-            } else {
-                modal.classList.add('hidden');
-            }
-        }
+        function unloadAuditor() {
+            appState.proyecto = "";
+            appState.matricula = "";
+            appState.files.pesadas = { rawData: [], headers: [], parsedRows: [] };
+            appState.files.planta = { rawData: [], headers: [], parsedRows: [] };
+            appState.processedDays = {};
+            appState.activeDate = "";
 
-        // --- MOTOR DE AUDITORÍA LOGÍSTICA (REGLAS DE NEGOCIO) ---
-        function runAuditorEngine() {
-            const daysData = {};
-            const records = appState.rawData;
-
-            // Agrupar pesadas por día
-            records.forEach(rec => {
-                const datePart = rec.timestamp.split(' ')[0];
-                if (!daysData[datePart]) {
-                    daysData[datePart] = {
-                        date: datePart,
-                        records: [],
-                        plantWeight: rec.peso_planta_dia || 0 // Peso real reportado en planta ese día
-                    };
-                }
-                daysData[datePart].records.push(rec);
-            });
-
-            // Procesar cada día aplicando el motor de auditoría individualizado
-            const processed = {};
+            document.getElementById('file-pesadas').value = "";
+            document.getElementById('file-planta').value = "";
+            document.getElementById('label-pesadas-file').innerText = "Arrastra o selecciona el archivo de pesadas del camión";
+            document.getElementById('label-planta-file').innerText = "Arrastra o selecciona el archivo de descargas de la planta";
             
-            Object.keys(daysData).sort().forEach(dateStr => {
-                const day = daysData[dateStr];
-                const dayRecords = day.records.sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp));
-                
-                let stats = {
-                    date: dateStr,
-                    totalCount: dayRecords.length,
-                    anomaliesCount: 0,
-                    totalOriginalNet: 0,
-                    discardedWeight: 0,
-                    cleanWeight: 0,
-                    plantWeight: day.plantWeight,
-                    rules: {
-                        timeLessThan10s: { count: 0, list: [] },
-                        impossible: { count: 0, list: [] },
-                        repeatedWeights: { count: 0, list: [] },
-                        sequenceWeights: { count: 0, list: [] },
-                        duplicates: { count: 0, list: [] }
-                    },
-                    auditedRecords: []
-                };
+            document.getElementById('mapper-pesadas').classList.add('hidden');
+            document.getElementById('mapper-planta').classList.add('hidden');
 
-                // Buffer auxiliar para buscar secuencias repetidas
-                const previousWeights = [];
+            document.getElementById('header-metadata-container').classList.add('hidden');
+            document.getElementById('navigation-bar').classList.add('hidden');
+            document.getElementById('view-dashboard').classList.add('hidden');
+            document.getElementById('view-detalle').classList.add('hidden');
+            document.getElementById('view-ingestion').classList.remove('hidden');
 
-                dayRecords.forEach((rec, idx) => {
-                    let flags = [];
-                    let severity = 'green'; // green, orange, red
-                    let weight = parseFloat(rec.peso_neto);
-                    stats.totalOriginalNet += weight;
-
-                    // --- REGLA 1: Registros imposibles (Negativos, Ceros o Superior a Tara Max)
-                    if (weight <= 0 || weight > appState.config.maxWeight) {
-                        severity = 'red';
-                        flags.push({
-                            rule: 'impossible',
-                            desc: weight <= 0 ? `Peso neto nulo o inválido (${weight} kg)` : `Peso excede tara máx autorizada (${weight.toLocaleString('es-ES')} kg > ${appState.config.maxWeight.toLocaleString('es-ES')} kg)`
-                        });
-                        stats.rules.impossible.count++;
-                    }
-
-                    // --- REGLA 2: Duplicidades (Mismo timestamp exacto)
-                    const isDuplicate = dayRecords.some((r, i) => i !== idx && r.timestamp === rec.timestamp);
-                    if (isDuplicate) {
-                        severity = 'red';
-                        flags.push({
-                            rule: 'duplicate',
-                            desc: `Timestamp duplicado en listado de pesadas (${rec.timestamp})`
-                        });
-                        stats.rules.duplicates.count++;
-                    }
-
-                    // --- REGLA 3: Tiempo entre recogidas < 10 segundos
-                    if (idx > 0) {
-                        const tCurrent = new Date(rec.timestamp);
-                        const tPrev = new Date(dayRecords[idx - 1].timestamp);
-                        const diffSec = (tCurrent - tPrev) / 1000;
-                        if (diffSec < appState.config.minSeconds && diffSec >= 0) {
-                            if (severity !== 'red') severity = 'orange';
-                            flags.push({
-                                rule: 'time',
-                                desc: `Frecuencia temporal físicamente imposible: ${diffSec.toFixed(1)}s desde la pesada anterior (Límite: ${appState.config.minSeconds}s)`
-                            });
-                            stats.rules.timeLessThan10s.count++;
-                        }
-                    }
-
-                    // --- REGLA 4: Pesos Repetidos Consecutivos (Sensor trabado o copia fraudulenta)
-                    if (idx > 0 && weight === parseFloat(dayRecords[idx - 1].peso_neto) && weight > 0) {
-                        if (severity !== 'red') severity = 'orange';
-                        flags.push({
-                            rule: 'repeated',
-                            desc: `Valor de pesaje idéntico al registro consecutivo anterior (#${dayRecords[idx-1].id}: ${weight} kg)`
-                        });
-                        stats.rules.repeatedWeights.count++;
-                    }
-
-                    // --- REGLA 5: Secuencias Repetidas (Clonación sistemática de patrones)
-                    // Analizamos un historial circular de pesos recientes
-                    previousWeights.push(weight);
-                    if (previousWeights.length > 8) previousWeights.shift();
-                    if (previousWeights.length >= 6) {
-                        // Comprobar patrón básico de repetición ABABAB o similar
-                        const w = previousWeights;
-                        if (w[0] === w[2] && w[2] === w[4] && w[1] === w[3] && w[3] === w[5]) {
-                            if (severity !== 'red') severity = 'orange';
-                            flags.push({
-                                rule: 'sequence',
-                                desc: `Detección de ciclo de pesaje repetitivo redundante (Patrón: ${w[0]} kg ⇄ ${w[1]} kg)`
-                            });
-                            stats.rules.sequenceWeights.count++;
-                        }
-                    }
-
-                    // Determinar si hay alguna alerta activa
-                    let isSuspicious = flags.length > 0;
-                    if (isSuspicious) {
-                        stats.anomaliesCount++;
-                        stats.discardedWeight += weight;
-                    }
-
-                    stats.auditedRecords.push({
-                        ...rec,
-                        peso_neto: weight,
-                        severity,
-                        isSuspicious,
-                        reasons: flags
-                    });
-                });
-
-                // Cálculos finales del día
-                stats.cleanWeight = stats.totalOriginalNet - stats.discardedWeight;
-                stats.deviationKg = stats.totalOriginalNet - stats.plantWeight;
-                stats.deviationPercent = stats.plantWeight > 0 ? (stats.deviationKg / stats.plantWeight) * 100 : 0;
-                stats.anomalyPercent = stats.totalCount > 0 ? (stats.anomaliesCount / stats.totalCount) * 100 : 0;
-                
-                // Balance de Conciliación
-                stats.remainingDev = stats.cleanWeight - stats.plantWeight;
-                stats.remainingDevPercent = stats.plantWeight > 0 ? (stats.remainingDev / stats.plantWeight) * 100 : 0;
-
-                // Determinar el Semáforo de Riesgo Diario
-                // Verde: Desviación tolerable (< 2%) Y Baja presencia de anomalías (< 2%)
-                // Naranja: Desviación moderada (2-5%) O Anomalías moderadas (2-8%)
-                // Rojo: Desviación grave (> 5%) O Alta presencia de anomalías (> 8%) o registros imposibles (Rojos)
-                const hasRedAlerts = stats.rules.impossible.count > 0 || stats.rules.duplicates.count > 0;
-                const devAbs = Math.abs(stats.deviationPercent);
-                
-                if (devAbs >= appState.config.riskGravePercent || stats.anomalyPercent >= 10 || hasRedAlerts) {
-                    stats.riskLevel = 'red';
-                    stats.riskLabel = 'Grave / Crítico';
-                } else if (devAbs >= appState.config.riskModeratePercent || stats.anomalyPercent >= 3) {
-                    stats.riskLevel = 'orange';
-                    stats.riskLabel = 'Desviación Moderada';
-                } else {
-                    stats.riskLevel = 'green';
-                    stats.riskLabel = 'Datos Coherentes';
-                }
-
-                processed[dateStr] = stats;
-            });
-
-            appState.processedDays = processed;
+            validateFormState();
+            showToast("Sistema Limpio", "Listo para auditar nuevos ficheros.", "info");
         }
 
-        // --- CARGAR DATOS DE PLANTILLAS DEMO ---
-        function loadTemplateData(type) {
-            const tmpl = DEMO_TEMPLATES[type];
-            appState.proyecto = tmpl.proyecto;
-            appState.matricula = tmpl.matricula;
-            appState.daysCount = tmpl.daysCount;
-            
-            // Generar datos aleatorios controlados basados en seed
-            appState.rawData = generateSimulatedWeights(tmpl.daysCount, tmpl.seed);
-            
-            // Procesar y recalcular
-            runAuditorEngine();
-            
-            // Forzar actualización de vistas
-            document.getElementById('header-proyecto-lbl').innerText = appState.proyecto;
-            document.getElementById('header-vehiculo-lbl').innerText = appState.matricula;
-            
-            if (Object.keys(appState.processedDays).length > 0) {
-                appState.activeDate = Object.keys(appState.processedDays)[0];
-            }
-            
-            if (appState.activeTab === 'dashboard') {
-                updateDashboardUI();
-            } else {
-                updateDateSelector();
-                renderDetailView();
-            }
-            closeImportModal();
-        }
-
-        // Aplicar configuraciones de tolerancias personalizadas
-        function applyConfigSettings() {
-            appState.config.minSeconds = parseInt(document.getElementById('conf-slider-seconds').value);
-            appState.config.maxWeight = parseInt(document.getElementById('conf-slider-capacity').value);
-            appState.config.riskModeratePercent = parseFloat(document.getElementById('conf-risk-moderate').value);
-            appState.config.riskGravePercent = parseFloat(document.getElementById('conf-risk-grave').value);
-
-            // Volver a calcular con nuevos parámetros
-            runAuditorEngine();
-            
-            // Actualizar vistas
-            if (appState.activeTab === 'dashboard') {
-                updateDashboardUI();
-            } else {
-                renderDetailView();
-            }
-            toggleConfigModal();
-        }
-
-        // Cargar datos a través de JSON del usuario
-        function handleFileUpload(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                try {
-                    const parsed = JSON.parse(e.target.result);
-                    if (!Array.isArray(parsed)) {
-                        alert("El archivo JSON debe contener un Array de pesadas.");
-                        return;
-                    }
-                    // Validar estructura elemental
-                    const isValid = parsed.every(item => item.timestamp && item.peso_neto !== undefined);
-                    if (!isValid) {
-                        alert("Estructura de JSON inválida. Requiere campos 'timestamp' y 'peso_neto' en cada registro.");
-                        return;
-                    }
-
-                    appState.proyecto = document.getElementById('import-proyecto').value || "Proyecto Personalizado";
-                    appState.matricula = document.getElementById('import-matricula').value || "Vehículo Auditoría";
-                    
-                    // Sobrescribir datos brutos
-                    appState.rawData = parsed;
-                    
-                    runAuditorEngine();
-                    
-                    document.getElementById('header-proyecto-lbl').innerText = appState.proyecto;
-                    document.getElementById('header-vehiculo-lbl').innerText = appState.matricula;
-                    appState.activeDate = Object.keys(appState.processedDays)[0];
-                    
-                    switchTab('dashboard');
-                    updateDashboardUI();
-                    closeImportModal();
-                } catch (err) {
-                    alert("Error leyendo el archivo JSON: " + err.message);
-                }
-            };
-            reader.readAsText(file);
-        }
-
-        // Generar un Dataset Personalizado basado en formulario del modal
-        function generateCustomDataset() {
-            const proj = document.getElementById('import-proyecto').value;
-            const mat = document.getElementById('import-matricula').value;
-            const days = parseInt(document.getElementById('import-dates-count').value);
-
-            appState.proyecto = proj;
-            appState.matricula = mat;
-            appState.daysCount = days;
-            appState.rawData = generateSimulatedWeights(days, Math.random());
-
-            runAuditorEngine();
-            
-            document.getElementById('header-proyecto-lbl').innerText = appState.proyecto;
-            document.getElementById('header-vehiculo-lbl').innerText = appState.matricula;
-            appState.activeDate = Object.keys(appState.processedDays)[0];
-            
-            switchTab('dashboard');
-            updateDashboardUI();
-            closeImportModal();
-        }
-
-        // --- GENERADOR DE DATOS DE PESADAS COHERENTES Y ANÓMALAS (SIMULADOR) ---
-        function generateSimulatedWeights(daysCount, seed) {
-            const list = [];
-            const baseDate = new Date();
-            baseDate.setDate(baseDate.getDate() - daysCount);
-
-            // Asegurar un factor de dispersión y anomalías según seed
-            const faultFrequency = seed;
-
-            for (let d = 0; d < daysCount; d++) {
-                const currentDay = new Date(baseDate);
-                currentDay.setDate(baseDate.getDate() + d);
-                const dateStr = currentDay.toISOString().split('T')[0];
-
-                // Carga objetivo real que el camión transporta ese día a planta
-                // p.ej., un camión suele hacer entre 4 y 7 viajes diarios a planta si es cantera/vertedero
-                const numTrips = 4 + Math.floor((seed * 11) % 4); 
-                const avgTripWeight = 2000 + Math.floor((seed * 4000) % 5000); // Peso medio de transporte real (e.g. 5.000 kg)
-                const realPlantaWeight = numTrips * avgTripWeight; // Lo real descargado en planta
-
-                // En el listado origen del vehículo, simulemos que hay pesadas continuas (recogidas)
-                // por cada viaje real a planta, se realizan unas 10 o 15 pesadas de recogida individual
-                const pickupsPerTrip = 8 + Math.floor((seed * 12) % 6);
-                const totalPickups = numTrips * pickupsPerTrip;
-
-                // Construimos timestamps para todo el día laboral (de 08:00 a 16:00)
-                let currentSecs = 8 * 3600; // 08:00 AM
-                
-                // Generar los registros del listado origen del camión
-                for (let p = 0; p < totalPickups; p++) {
-                    // Incrementar timestamp entre pickups (de 60s a 400s habitualmente)
-                    currentSecs += 120 + Math.floor((Math.random() * 250));
-                    
-                    const hours = Math.floor(currentSecs / 3600);
-                    const mins = Math.floor((currentSecs % 3600) / 60);
-                    const secs = currentSecs % 60;
-                    const timestampStr = `${dateStr} ${String(hours).padStart(2,'0')}:${String(mins).padStart(2,'0')}:${String(secs).padStart(2,'0')}`;
-
-                    // Peso por pickup (e.g. 350 kg)
-                    let pickupWeight = Math.round(avgTripWeight / pickupsPerTrip * (0.8 + Math.random() * 0.4));
-
-                    // --- INYECCIÓN CONTROLADA DE ANOMALÍAS SEGÚN SEED ---
-                    // Generamos anomalías sistemáticas para auditar
-                    const rand = Math.random();
-                    let forceAnom = false;
-
-                    // Cada pocos registros, inyectamos alertas
-                    if (p > 0 && p % 9 === 0 && rand < faultFrequency) {
-                        // Caso A: Regla de los 10 segundos (Frecuencia absurda)
-                        // Restamos la hora para que quede casi idéntica a la anterior
-                        const prevPickup = list[list.length - 1];
-                        const prevTimeParts = prevPickup.timestamp.split(' ')[1].split(':');
-                        const prevSecs = parseInt(prevTimeParts[0])*3600 + parseInt(prevTimeParts[1])*60 + parseInt(prevTimeParts[2]);
-                        
-                        const fakeSecs = prevSecs + 3; // Solo 3 segundos después
-                        const fHours = Math.floor(fakeSecs / 3600);
-                        const fMins = Math.floor((fakeSecs % 3600) / 60);
-                        const fSecs = fakeSecs % 60;
-                        
-                        const fakeTimestamp = `${dateStr} ${String(fHours).padStart(2,'0')}:${String(fMins).padStart(2,'0')}:${String(fSecs).padStart(2,'0')}`;
-                        
-                        list.push({
-                            id: list.length + 1001,
-                            timestamp: fakeTimestamp,
-                            peso_neto: pickupWeight,
-                            peso_planta_dia: realPlantaWeight
-                        });
-                        continue;
-                    }
-
-                    if (p % 13 === 0 && rand < faultFrequency) {
-                        // Caso B: Registro Imposible (Exceso de carga masivo o negativo)
-                        pickupWeight = rand > 0.5 ? appState.config.maxWeight + 2500 : -120;
-                    }
-
-                    if (p > 0 && p % 15 === 0 && rand < faultFrequency) {
-                        // Caso C: Peso duplicado consecutivo (Sensor congelado)
-                        pickupWeight = list[list.length - 1].peso_neto;
-                    }
-
-                    if (p > 0 && p % 19 === 0 && rand < faultFrequency) {
-                        // Caso D: Duplicidad horaria exacta
-                        list.push({
-                            id: list.length + 1001,
-                            timestamp: list[list.length - 1].timestamp,
-                            peso_neto: pickupWeight,
-                            peso_planta_dia: realPlantaWeight
-                        });
-                        continue;
-                    }
-
-                    list.push({
-                        id: list.length + 1001,
-                        timestamp: timestampStr,
-                        peso_neto: pickupWeight,
-                        peso_planta_dia: realPlantaWeight
-                    });
-                }
-            }
-            return list;
-        }
-
-
-        // --- ACTUALIZACIÓN DE LA UI DEL DASHBOARD GENERAL ---
+        // --- RENDERIZACIÓN DE LA UI DEL DASHBOARD GENERAL ---
         function updateDashboardUI() {
-            // Totales globales recalculados
             let globalTotalNeto = 0;
             let globalTotalPlanta = 0;
             let globalTotalRegistros = 0;
             let globalTotalAnomalas = 0;
 
-            const days = Object.keys(appState.processedDays);
+            const days = Object.keys(appState.processedDays).sort();
             days.forEach(d => {
                 const day = appState.processedDays[d];
                 globalTotalNeto += day.totalOriginalNet;
@@ -1141,16 +1406,13 @@
 
             const diffTotal = globalTotalNeto - globalTotalPlanta;
             const globalDevPercent = globalTotalPlanta > 0 ? (diffTotal / globalTotalPlanta) * 100 : 0;
-            const globalAnomPercent = globalTotalRegistros > 0 ? (globalTotalAnomalas / globalTotalRegistros) * 100 : 0;
 
-            // Renderizado de metadatos del header
-            document.getElementById('dash-project-title').innerText = appState.proyecto + " (Auditoría Integral)";
-            document.getElementById('dash-date-range').innerText = `${days[0] || 'N/D'} al ${days[days.length - 1] || 'N/D'}`;
+            document.getElementById('dash-project-title').innerText = appState.proyecto;
+            document.getElementById('dash-date-range').innerText = days.length > 0 ? `${days[0]} / ${days[days.length - 1]}` : "Sin datos";
             document.getElementById('dash-total-days').innerText = days.length;
-            document.getElementById('dash-total-registros').innerText = globalTotalRegistros;
-            document.getElementById('dash-total-sospechosos').innerText = globalTotalAnomalas;
+            document.getElementById('dash-total-registros').innerText = globalTotalRegistros.toLocaleString('es-ES');
+            document.getElementById('dash-total-sospechosos').innerText = globalTotalAnomalas.toLocaleString('es-ES');
 
-            // KPIs principales con color dinámico según desvío
             document.getElementById('kpi-total-neto').innerText = globalTotalNeto.toLocaleString('es-ES') + " kg";
             document.getElementById('kpi-total-planta').innerText = globalTotalPlanta.toLocaleString('es-ES') + " kg";
             
@@ -1160,29 +1422,28 @@
             const devEl = document.getElementById('kpi-desviacion-percent');
             devEl.innerText = (globalDevPercent >= 0 ? "+" : "") + globalDevPercent.toFixed(2) + "%";
 
-            // Indicadores de color para KPIs
             const devAbs = Math.abs(globalDevPercent);
             const indicatorDiff = document.getElementById('kpi-diff-indicator');
             const indicatorDev = document.getElementById('kpi-desv-indicator');
 
             if (devAbs > appState.config.riskGravePercent) {
-                diffEl.className = "text-2xl font-extrabold text-rose-600 mt-1";
-                devEl.className = "text-2xl font-extrabold text-rose-600 mt-1";
+                diffEl.className = "text-2xl font-black text-rose-600 mt-1 font-mono";
+                devEl.className = "text-2xl font-black text-rose-600 mt-1 font-mono";
                 indicatorDiff.className = "inline-block w-2 h-2 rounded-full bg-rose-500 animate-ping";
                 indicatorDev.className = "inline-block w-2 h-2 rounded-full bg-rose-500 animate-ping";
             } else if (devAbs > appState.config.riskModeratePercent) {
-                diffEl.className = "text-2xl font-extrabold text-amber-500 mt-1";
-                devEl.className = "text-2xl font-extrabold text-amber-500 mt-1";
+                diffEl.className = "text-2xl font-black text-amber-500 mt-1 font-mono";
+                devEl.className = "text-2xl font-black text-amber-500 mt-1 font-mono";
                 indicatorDiff.className = "inline-block w-2 h-2 rounded-full bg-amber-400";
                 indicatorDev.className = "inline-block w-2 h-2 rounded-full bg-amber-400";
             } else {
-                diffEl.className = "text-2xl font-extrabold text-emerald-600 mt-1";
-                devEl.className = "text-2xl font-extrabold text-emerald-600 mt-1";
+                diffEl.className = "text-2xl font-black text-emerald-600 mt-1 font-mono";
+                devEl.className = "text-2xl font-black text-emerald-600 mt-1 font-mono";
                 indicatorDiff.className = "inline-block w-2 h-2 rounded-full bg-emerald-500";
                 indicatorDev.className = "inline-block w-2 h-2 rounded-full bg-emerald-500";
             }
 
-            // --- RENDERIZAR SEMÁFORO DIARIO DE CONTROL ---
+            // --- RENDER DE TABLA DE SEMÁFOROS DIARIOS ---
             const tbody = document.getElementById('semaphore-tbody');
             tbody.innerHTML = "";
 
@@ -1207,16 +1468,16 @@
                 tr.onclick = function() { openDetailForDate(day.date); };
 
                 tr.innerHTML = `
-                    <td class="px-4 py-3.5 text-xs font-bold text-slate-700 whitespace-nowrap">${day.date}</td>
-                    <td class="px-4 py-3.5 text-xs font-semibold text-right text-slate-600 whitespace-nowrap">${day.totalOriginalNet.toLocaleString('es-ES')} kg</td>
-                    <td class="px-4 py-3.5 text-xs font-semibold text-right text-slate-600 whitespace-nowrap">${day.plantWeight.toLocaleString('es-ES')} kg</td>
-                    <td class="px-4 py-3.5 text-xs font-bold text-right whitespace-nowrap ${Math.abs(day.deviationPercent) > appState.config.riskGravePercent ? 'text-rose-600' : 'text-slate-600'}">${day.deviationPercent.toFixed(2)}%</td>
-                    <td class="px-4 py-3.5 text-xs text-center whitespace-nowrap">
+                    <td class="px-4 py-3 text-xs font-bold text-slate-700 whitespace-nowrap">${day.date}</td>
+                    <td class="px-4 py-3 text-xs font-semibold text-right text-slate-600 whitespace-nowrap font-mono">${day.totalOriginalNet.toLocaleString('es-ES')} kg</td>
+                    <td class="px-4 py-3 text-xs font-semibold text-right text-slate-600 whitespace-nowrap font-mono">${day.plantWeight.toLocaleString('es-ES')} kg</td>
+                    <td class="px-4 py-3 text-xs font-bold text-right whitespace-nowrap font-mono ${Math.abs(day.deviationPercent) > appState.config.riskGravePercent ? 'text-rose-600' : 'text-slate-600'}">${day.deviationPercent.toFixed(2)}%</td>
+                    <td class="px-4 py-3 text-xs text-center whitespace-nowrap">
                         <span class="inline-flex items-center justify-center font-bold ${day.anomaliesCount > 0 ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-400'} rounded-full px-2 py-0.5">
                             ${day.anomaliesCount}
                         </span>
                     </td>
-                    <td class="px-4 py-3.5 text-[10px] text-center whitespace-nowrap">
+                    <td class="px-4 py-3 text-[10px] text-center whitespace-nowrap">
                         <span class="inline-block px-2.5 py-1 rounded font-bold uppercase tracking-wider ${riskBadgeClass}">
                             ${day.riskLabel}
                         </span>
@@ -1225,22 +1486,19 @@
                 tbody.appendChild(tr);
             });
 
-            // --- RENDERIZAR RANKINGS DIARIOS ---
+            // --- GENERAR RANKINGS ---
             const rankingDevContainer = document.getElementById('ranking-desviacion-container');
             const rankingAnomalasContainer = document.getElementById('ranking-anomalias-container');
 
             rankingDevContainer.innerHTML = "";
             rankingAnomalasContainer.innerHTML = "";
 
-            // Clonamos y ordenamos por desviación absoluta
             const listSortedDev = [...days].map(d => appState.processedDays[d])
                 .sort((a,b) => Math.abs(b.deviationPercent) - Math.abs(a.deviationPercent));
 
-            // Clonamos y ordenamos por número de anomalías
             const listSortedAnom = [...days].map(d => appState.processedDays[d])
                 .sort((a,b) => b.anomaliesCount - a.anomaliesCount);
 
-            // Inyectar top desviaciones
             listSortedDev.slice(0, 4).forEach((day, index) => {
                 const colorCode = Math.abs(day.deviationPercent) > appState.config.riskGravePercent ? 'text-rose-600' : 'text-amber-600';
                 const div = document.createElement('div');
@@ -1251,12 +1509,11 @@
                         <span class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">${index + 1}</span>
                         <span class="text-xs font-semibold text-slate-700">${day.date}</span>
                     </div>
-                    <span class="text-xs font-black ${colorCode}">${day.deviationPercent.toFixed(2)}% desv.</span>
+                    <span class="text-xs font-black font-mono ${colorCode}">${day.deviationPercent.toFixed(2)}% desv.</span>
                 `;
                 rankingDevContainer.appendChild(div);
             });
 
-            // Inyectar top sospechosos
             listSortedAnom.slice(0, 4).forEach((day, index) => {
                 const div = document.createElement('div');
                 div.className = "py-2.5 flex justify-between items-center cursor-pointer hover:bg-slate-50 rounded-lg px-2 transition";
@@ -1266,16 +1523,15 @@
                         <span class="w-5 h-5 rounded-full bg-slate-100 flex items-center justify-center text-xs font-bold text-slate-500">${index + 1}</span>
                         <span class="text-xs font-semibold text-slate-700">${day.date}</span>
                     </div>
-                    <span class="text-xs font-black text-amber-600">${day.anomaliesCount} sospechas (${day.anomalyPercent.toFixed(1)}%)</span>
+                    <span class="text-xs font-black text-amber-600">${day.anomaliesCount} alertas (${day.anomalyPercent.toFixed(1)}%)</span>
                 `;
                 rankingAnomalasContainer.appendChild(div);
             });
 
-            // Re-renderizar gráficos
-            renderDashboardCharts();
+            setTimeout(renderDashboardCharts, 100);
         }
 
-        // --- RENDERIZADO DE GRÁFICOS (CHART.JS) ---
+        // --- RENDER DE GRÁFICOS ---
         function renderDashboardCharts() {
             const days = Object.keys(appState.processedDays).sort();
             const labels = days;
@@ -1284,12 +1540,10 @@
             const dataDesv = days.map(d => appState.processedDays[d].deviationKg);
             const dataAnom = days.map(d => appState.processedDays[d].anomaliesCount);
 
-            // Destruir gráficos previos si existen para evitar solapamientos
             if (charts.weights) charts.weights.destroy();
             if (charts.deviations) charts.deviations.destroy();
             if (charts.anomalies) charts.anomalies.destroy();
 
-            // Gráfico 1: Peso Neto Registrado vs Planta
             const ctxW = document.getElementById('chartWeights').getContext('2d');
             charts.weights = new Chart(ctxW, {
                 type: 'bar',
@@ -1322,7 +1576,6 @@
                 }
             });
 
-            // Gráfico 2: Desviación Diaria en kg
             const ctxD = document.getElementById('chartDeviations').getContext('2d');
             charts.deviations = new Chart(ctxD, {
                 type: 'line',
@@ -1347,7 +1600,6 @@
                 }
             });
 
-            // Gráfico 3: Cantidad de Anomalías
             const ctxA = document.getElementById('chartAnomalies').getContext('2d');
             charts.anomalies = new Chart(ctxA, {
                 type: 'bar',
@@ -1371,8 +1623,7 @@
             });
         }
 
-
-        // --- DETALLE DIARIO: SELECTORES Y FILTROS ---
+        // --- DETALLE DIARIO: RENDERIZADO Y CONTROL DE FILTROS ---
         function updateDateSelector() {
             const select = document.getElementById('detalle-fecha-select');
             select.innerHTML = "";
@@ -1389,8 +1640,6 @@
         function onDetailDateChanged() {
             appState.activeDate = document.getElementById('detalle-fecha-select').value;
             appState.detailFilter = "all";
-            
-            // Actualizar botones de filtro
             updateFilterButtonsUI();
             renderDetailView();
         }
@@ -1406,23 +1655,20 @@
             filters.forEach(f => {
                 const btn = document.getElementById(`filter-btn-${f}`);
                 if (f === appState.detailFilter) {
-                    btn.className = "text-xs font-bold px-3 py-1.5 rounded-md transition-all bg-white text-slate-800 shadow-sm border border-slate-200";
+                    btn.className = "text-[11px] font-bold px-3 py-1.5 rounded-md transition-all bg-white text-slate-800 shadow-sm border border-slate-200";
                 } else {
-                    btn.className = "text-xs font-bold px-3 py-1.5 rounded-md transition-all text-slate-500 hover:text-slate-800";
+                    btn.className = "text-[11px] font-bold px-3 py-1.5 rounded-md transition-all text-slate-500 hover:text-slate-800";
                 }
             });
         }
 
-        // --- RENDERIZAR VISTA DE DETALLE POR JORNADA ---
         function renderDetailView() {
             const day = appState.processedDays[appState.activeDate];
             if (!day) return;
 
-            // Rellenar cabeceras y textos contextuales
             document.getElementById('det-header-proyecto').innerText = "Proyecto: " + appState.proyecto;
             document.getElementById('det-header-matricula').innerText = "Vehículo: " + appState.matricula;
 
-            // Tarjetas de KPIs Diarios
             document.getElementById('det-kpi-neto').innerText = day.totalOriginalNet.toLocaleString('es-ES') + " kg";
             document.getElementById('det-kpi-planta').innerText = day.plantWeight.toLocaleString('es-ES') + " kg";
             
@@ -1434,27 +1680,26 @@
             desvEl.innerText = day.deviationPercent.toFixed(2) + "%";
             
             if (Math.abs(day.deviationPercent) > appState.config.riskGravePercent) {
-                diffEl.className = "block text-lg font-extrabold text-rose-600 mt-1";
-                desvEl.className = "block text-lg font-extrabold text-rose-600 mt-1";
+                diffEl.className = "block text-lg font-black text-rose-600 mt-1 font-mono";
+                desvEl.className = "block text-lg font-black text-rose-600 mt-1 font-mono";
             } else if (Math.abs(day.deviationPercent) > appState.config.riskModeratePercent) {
-                diffEl.className = "block text-lg font-extrabold text-amber-500 mt-1";
-                desvEl.className = "block text-lg font-extrabold text-amber-500 mt-1";
+                diffEl.className = "block text-lg font-black text-amber-500 mt-1 font-mono";
+                desvEl.className = "block text-lg font-black text-amber-500 mt-1 font-mono";
             } else {
-                diffEl.className = "block text-lg font-extrabold text-emerald-600 mt-1";
-                desvEl.className = "block text-lg font-extrabold text-emerald-600 mt-1";
+                diffEl.className = "block text-lg font-black text-emerald-600 mt-1 font-mono";
+                desvEl.className = "block text-lg font-black text-emerald-600 mt-1 font-mono";
             }
 
             document.getElementById('det-kpi-count').innerText = day.totalCount;
             document.getElementById('det-kpi-susp').innerText = day.anomaliesCount;
 
-            // --- INSPECCIÓN AUTOMÁTICA DE SEGURIDAD (REGLAS DE NEGOCIO CARD) ---
-            updateRuleCard('time', day.rules.timeLessThan10s.count, "Frecuencias &lt; 10s");
-            updateRuleCard('impossible', day.rules.impossible.count, "Fuera de Rango (TARA)");
-            updateRuleCard('repeated', day.rules.repeatedWeights.count, "Pesos Congelados");
-            updateRuleCard('sequence', day.rules.sequenceWeights.count, "Ciclos Clónicos");
-            updateRuleCard('duplicate', day.rules.duplicates.count, "Marcas Idénticas");
+            updateRuleCard('time', day.rules.timeLessThan10s.count);
+            updateRuleCard('impossible', day.rules.impossible.count);
+            updateRuleCard('repeated', day.rules.repeatedWeights.count);
+            updateRuleCard('sequence', day.rules.sequenceWeights.count);
+            updateRuleCard('duplicate', day.rules.duplicates.count);
 
-            // --- BALANCE DE CONCILIACIÓN DE CARGA ---
+            // --- BALANCE DE CONCILIACIÓN CONTABLE ---
             document.getElementById('bal-original').innerText = day.totalOriginalNet.toLocaleString('es-ES') + " kg";
             document.getElementById('bal-discarded').innerText = "-" + day.discardedWeight.toLocaleString('es-ES') + " kg";
             document.getElementById('bal-clean').innerText = day.cleanWeight.toLocaleString('es-ES') + " kg";
@@ -1464,7 +1709,6 @@
             const remEl = document.getElementById('bal-remaining');
             remEl.innerText = (remainingVal >= 0 ? "+" : "") + remainingVal.toLocaleString('es-ES') + " kg";
 
-            // Caja de Estado Final del Balance
             const statusBox = document.getElementById('bal-status-box');
             const statusBadge = document.getElementById('bal-status-badge');
             const statusPercent = document.getElementById('bal-status-percent');
@@ -1477,20 +1721,20 @@
                 statusBox.className = "mt-4 p-3 rounded-xl flex flex-col items-center justify-center text-center gap-1 bg-emerald-50 text-emerald-800 border border-emerald-200";
                 statusBadge.innerText = "CONCILIADO COMPLETO";
                 statusDesc.innerText = "La depuración de alertas explica y solventa el desvío con la planta.";
-                remEl.className = "font-bold text-emerald-600";
+                remEl.className = "font-bold text-emerald-600 font-mono";
             } else if (Math.abs(remPercent) <= 4) {
                 statusBox.className = "mt-4 p-3 rounded-xl flex flex-col items-center justify-center text-center gap-1 bg-amber-50 text-amber-800 border border-amber-200";
-                statusBadge.innerText = "DESVÍO MODERADO";
+                statusBadge.innerText = "DESVÍO PREVENTIVO";
                 statusDesc.innerText = "La depuración reduce la desviación pero persiste un error menor tolerable.";
-                remEl.className = "font-bold text-amber-500";
+                remEl.className = "font-bold text-amber-500 font-mono";
             } else {
                 statusBox.className = "mt-4 p-3 rounded-xl flex flex-col items-center justify-center text-center gap-1 bg-rose-50 text-rose-800 border border-rose-200";
                 statusBadge.innerText = "DESVÍO CRÍTICO";
                 statusDesc.innerText = "Diferencias insalvables. Posible pérdida material o fuga logística.";
-                remEl.className = "font-bold text-rose-600";
+                remEl.className = "font-bold text-rose-600 font-mono";
             }
 
-            // --- TABLA DE REGISTROS CON FILTRADO ---
+            // --- TABLA DE REGISTROS DEL DÍA CON FILTRADO ---
             const tbody = document.getElementById('detail-tbody');
             tbody.innerHTML = "";
 
@@ -1513,7 +1757,7 @@
                 if (rec.severity === 'red') {
                     rowBgClass = "bg-rose-50 hover:bg-rose-100/60";
                     badgeClass = "bg-rose-100 text-rose-800 border border-rose-200";
-                    statusLabel = "Crítico / Imposible";
+                    statusLabel = "Crítico";
                 } else if (rec.severity === 'orange') {
                     rowBgClass = "bg-amber-50/70 hover:bg-amber-100/60";
                     badgeClass = "bg-amber-100 text-amber-800 border border-amber-200";
@@ -1539,9 +1783,9 @@
                 tr.innerHTML = `
                     <td class="px-4 py-3 text-xs font-bold text-slate-800 font-mono">#${rec.id}</td>
                     <td class="px-4 py-3 text-xs font-semibold text-slate-600 font-mono">${rec.timestamp}</td>
-                    <td class="px-4 py-3 text-xs font-extrabold text-right text-slate-800 font-mono">${rec.peso_neto.toLocaleString('es-ES')} kg</td>
+                    <td class="px-4 py-3 text-xs font-black text-right text-slate-800 font-mono">${rec.peso_neto.toLocaleString('es-ES')} kg</td>
                     <td class="px-4 py-3 text-xs">
-                        <span class="inline-block text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded ${badgeClass}">
+                        <span class="inline-block text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded ${badgeClass}">
                             ${statusLabel}
                         </span>
                         ${reasonHtml}
@@ -1550,45 +1794,111 @@
                 tbody.appendChild(tr);
             });
 
-            // --- CONCLUSIÓN TÉCNICA AUTOMATIZADA ---
             const concEl = document.getElementById('auto-conclusion-text');
             concEl.innerText = generateTechnicalConclusion(day);
         }
 
-        // Helper para pintar el estado de las reglas individuales en tarjetas
-        function updateRuleCard(ruleKey, count, label) {
+        function updateRuleCard(ruleKey, count) {
             const card = document.getElementById(`rule-card-${ruleKey}`);
             const statusLabel = document.getElementById(`rule-status-${ruleKey}`);
 
             if (count > 0) {
                 card.className = "border border-amber-200 bg-amber-50/40 rounded-xl p-4 flex flex-col justify-between transition";
                 statusLabel.className = "mt-3 text-[10px] font-bold text-amber-700 uppercase bg-amber-100 border border-amber-200 rounded px-2 py-0.5 w-max";
-                statusLabel.innerText = `${count} ALERTA${count > 1 ? 'S' : ''} DETECTADA${count > 1 ? 'S' : ''}`;
+                statusLabel.innerText = `${count} ALERTA${count > 1 ? 'S' : ''} ACTIVA${count > 1 ? 'S' : ''}`;
             } else {
                 card.className = "border border-slate-100 bg-white rounded-xl p-4 flex flex-col justify-between transition";
                 statusLabel.className = "mt-3 text-[10px] font-bold text-emerald-700 uppercase bg-emerald-100 border border-emerald-200 rounded px-2 py-0.5 w-max";
-                statusLabel.innerText = "CUMPLE SIN ADVERTENCIA";
+                statusLabel.innerText = "CONFORME";
             }
         }
 
-        // --- MOTOR DE GENERACIÓN DE TEXTO EJECUTIVO DE CONCILIACIÓN ---
         function generateTechnicalConclusion(day) {
-            const devAbs = Math.abs(day.deviationPercent);
             let dictamen = "";
             let accion = "";
 
             if (day.riskLevel === 'red') {
-                dictamen = `DICTAMEN CRÍTICO. Se observa una desviación muy severa de un ${day.deviationPercent.toFixed(2)}% (${(day.totalOriginalNet - day.plantWeight).toLocaleString('es-ES')} kg) respecto a la báscula de destino.`;
-                accion = `Se requiere urgentemente abrir una auditoría operativa para el vehículo con matrícula ${appState.matricula}. Tras descontar los registros fraudulentos o duplicados, el desvío inexplicable restante desciende a un ${day.remainingDevPercent.toFixed(2)}% (${day.remainingDev.toLocaleString('es-ES')} kg), confirmando que la distorsión de los datos proviene de la captura de pesajes duplicados o frecuencias menores a ${appState.config.minSeconds} segundos en el origen y no de una fuga real de material.`;
+                dictamen = `DICTAMEN CRÍTICO. Se observa una desviación severa del ${day.deviationPercent.toFixed(2)}% (${(day.totalOriginalNet - day.plantWeight).toLocaleString('es-ES')} kg) respecto a la báscula certificada de destino.`;
+                accion = `Se requiere auditar la operación del camión con matrícula ${appState.matricula}. Tras descontar los registros fraudulentos o duplicados procesados por el motor de reglas, el desvío inexplicable restante desciende de forma clara a un ${day.remainingDevPercent.toFixed(2)}% (${day.remainingDev.toLocaleString('es-ES')} kg), lo que demuestra que la discrepancia proviene de duplicidades o capturas repetidas en origen y no de una fuga de material real.`;
             } else if (day.riskLevel === 'orange') {
-                dictamen = `DICTAMEN MODERADO. Se ha detectado un volumen de desvío del ${day.deviationPercent.toFixed(2)}% en las pesadas.`;
-                accion = `La aplicación de los filtros de auditoría automática permitió aislar ${day.anomaliesCount} registros sospechosos (pesos repetidos y/o frecuencias rápidas). El Balance de Conciliación arroja un ajuste de desvío residual tolerable del ${day.remainingDevPercent.toFixed(2)}% (${day.remainingDev.toLocaleString('es-ES')} kg), el cual se encuentra dentro de la tolerancia de descalibración estándar de básculas. Se aconseja revisión preventiva de sensores de pesaje en el camión.`;
+                dictamen = `DICTAMEN PREVENTIVO. Se ha detectado un volumen de desvío del ${day.deviationPercent.toFixed(2)}% en las pesadas del camión.`;
+                accion = `La aplicación de los filtros de auditoría automática permitió aislar ${day.anomaliesCount} registros sospechosos (pesos repetidos y/o capturas de alta frecuencia). El Balance de Conciliación arroja un desvío residual tolerable del ${day.remainingDevPercent.toFixed(2)}% (${day.remainingDev.toLocaleString('es-ES')} kg), el cual se encuentra dentro de la tolerancia de descalibración estándar de básculas. Se aconseja revisión preventiva de sensores de pesaje en el camión.`;
             } else {
                 dictamen = `DICTAMEN COHERENTE. La jornada del ${day.date} presenta una consistencia total en origen y destino.`;
                 accion = `Con una desviación de apenas un ${day.deviationPercent.toFixed(2)}% (${(day.totalOriginalNet - day.plantWeight).toLocaleString('es-ES')} kg) y cero anomalías operativas de relieve detectadas, el flujo logístico transcurrió de forma regular y limpia. No se requieren medidas correctivas ni auditorías de campo para esta fecha.`;
             }
 
             return `${dictamen} ${accion} El descarte acumulado sugerido para depuración de base de datos es de ${day.discardedWeight.toLocaleString('es-ES')} kg.`;
+        }
+
+        function toggleConfigModal() {
+            const modal = document.getElementById('modal-config');
+            if (modal.classList.contains('hidden')) {
+                document.getElementById('conf-slider-seconds').value = appState.config.minSeconds;
+                document.getElementById('conf-val-seconds').innerText = appState.config.minSeconds + 's';
+                document.getElementById('conf-slider-capacity').value = appState.config.maxWeight;
+                document.getElementById('conf-val-capacity').innerText = appState.config.maxWeight.toLocaleString('es-ES') + ' kg';
+                document.getElementById('conf-risk-moderate').value = appState.config.riskModeratePercent;
+                document.getElementById('conf-risk-grave').value = appState.config.riskGravePercent;
+                modal.classList.remove('hidden');
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function applyConfigSettings() {
+            appState.config.minSeconds = parseInt(document.getElementById('conf-slider-seconds').value);
+            appState.config.maxWeight = parseInt(document.getElementById('conf-slider-capacity').value);
+            appState.config.riskModeratePercent = parseFloat(document.getElementById('conf-risk-moderate').value);
+            appState.config.riskGravePercent = parseFloat(document.getElementById('conf-risk-grave').value);
+
+            if (appState.files.pesadas.rawData.length > 0) {
+                runAnalysisEngine();
+            }
+            toggleConfigModal();
+        }
+
+        function downloadSampleFile(type) {
+            let csvContent = "";
+            let fileName = "";
+
+            if (type === 'pesadas') {
+                fileName = "AuditPro_Ejemplo_Pesadas_Vehiculo.csv";
+                csvContent = "id_pesada,fecha_registro,peso_neto_kg\n" +
+                             "1001,2026-05-18 08:05:12,420\n" +
+                             "1002,2026-05-18 08:05:14,420\n" +
+                             "1003,2026-05-18 08:14:35,510\n" +
+                             "1004,2026-05-18 08:26:40,480\n" +
+                             "1005,2026-05-18 08:42:12,15200\n" +
+                             "1006,2026-05-18 08:55:00,320\n" +
+                             "1007,2026-05-18 08:55:00,320\n" +
+                             "1008,2026-05-18 09:12:00,610\n" +
+                             "1009,2026-05-18 09:34:00,120\n" +
+                             "1010,2026-05-18 09:45:00,340\n" +
+                             "1011,2026-05-19 08:10:00,500\n" +
+                             "1012,2026-05-19 08:22:00,450\n" +
+                             "1013,2026-05-19 08:35:00,480\n" +
+                             "1014,2026-05-19 08:48:00,-50\n";
+            } else {
+                fileName = "AuditPro_Ejemplo_Planta_Bascula.csv";
+                csvContent = "fecha_ticket,peso_ticket_kg\n" +
+                             "2026-05-18,2480\n" +
+                             "2026-05-19,1430\n";
+            }
+
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement("a");
+            if (link.download !== undefined) {
+                const url = URL.createObjectURL(blob);
+                link.setAttribute("href", url);
+                link.setAttribute("download", fileName);
+                link.style.visibility = 'hidden';
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                
+                showToast("Fichero Descargado", `Se descargó "${fileName}" satisfactoriamente para tus pruebas.`, "success");
+            }
         }
     </script>
 </body>
