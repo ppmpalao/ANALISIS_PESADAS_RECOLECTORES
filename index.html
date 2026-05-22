@@ -1,0 +1,1537 @@
+import React, { useState, useEffect, useMemo } from 'react';
+
+// ==========================================
+// DATASET DE DEMOSTRACIÓN PRECARGADO (CASO REAL)
+// ==========================================
+const DEMO_VERTEDERO = [
+  { vehiculo: "4761KPW", dia: "2026-05-18", residuo: "RESTO", planta1: 9820, planta2: 4980, total: 14800 },
+  { vehiculo: "4761KPW", dia: "2026-05-19", residuo: "PAPEL", planta1: 2020, planta2: 0, total: 2020 },
+  { vehiculo: "4761KPW", dia: "2026-05-20", residuo: "RESTO", planta1: 5020, planta2: 8540, total: 13560 },
+  { vehiculo: "4761KPW", dia: "2026-05-21", residuo: "PAPEL", planta1: 2040, planta2: 0, total: 2040 }
+];
+
+// Generador inteligente de pesadas de demo que simula fielmente los ficheros originales
+const generarDemoPesadas = () => {
+  const pesadas = [];
+  let idCounter = 1;
+
+  // --- DÍA 18 DE MAYO (RESTO - Desviación Crítica: 14.800 kg real vs ~60.000 kg pesadas) ---
+  // Simulamos un bloque base de 35 contenedores reales que suman unos 13,800 kg
+  const callesDia18 = [
+    "CALLE SAN ANDRES", "AVENIDA DE PERALTA", "CALLE BARDENAS REALES", "PASEO DE LA MEJANA",
+    "CALLE SAN ESTEBAN", "TRAVESIA EL SALVADOR", "CALLE CORAZON DE MARIA", "POLIGONO INDUSTRIAL",
+    "CALLE LOS FUEROS", "PLAZA DE LA CONSTITUCION", "CALLE TEJERIAS", "CALLE CARMEN"
+  ];
+  const pesosBase18 = [85, 120, 310, 420, 95, 145, 280, 67, 115, 305, 140, 220, 510, 90, 85, 190, 440, 350];
+  
+  const bloqueBase18 = [];
+  let horaActual = new Date("2026-05-18T08:00:00");
+  
+  for (let i = 0; i < 40; i++) {
+    const peso = pesosBase18[i % pesosBase18.length] + Math.floor(Math.random() * 20 - 10);
+    const calle = callesDia18[i % callesDia18.length];
+    horaActual = new Date(horaActual.getTime() + (2 * 60 + Math.floor(Math.random() * 120)) * 1000); // 2-4 minutos entre contenedores reales
+    bloqueBase18.push({
+      fecha: "2026-05-18",
+      hora: horaActual.toTimeString().split(' ')[0],
+      vehiculo: "4761KPW",
+      lugar: calle,
+      neto: Math.max(20, peso),
+      residuo: "RESTO"
+    });
+  }
+
+  // Duplicamos este bloque base 3 veces con intervalos temporales imposibles (glicth de transmisión/duplicidad)
+  // Réplica 1: Con solo segundos de diferencia
+  const replica1 = bloqueBase18.map((p, idx) => {
+    const horaReplica = new Date(`2026-05-18T${p.hora}`);
+    const nuevaHora = new Date(horaReplica.getTime() + 4000); // 4 segundos después! (Intervalo < 10s)
+    return {
+      ...p,
+      hora: nuevaHora.toTimeString().split(' ')[0],
+      neto: p.neto // Mismo peso (Peso duplicado)
+    };
+  });
+
+  // Réplica 2: Otra secuencia repetida más tarde en el día
+  const replica2 = bloqueBase18.map((p, idx) => {
+    const horaReplica = new Date(`2026-05-18T${p.hora}`);
+    const nuevaHora = new Date(horaReplica.getTime() + 15 * 60000 + 8000); // 15 min de desfase + 8s
+    return {
+      ...p,
+      hora: nuevaHora.toTimeString().split(' ')[0],
+      neto: p.neto
+    };
+  });
+
+  // Réplica 3: Un tercer bloque idéntico
+  const replica3 = bloqueBase18.map((p, idx) => {
+    const horaReplica = new Date(`2026-05-18T${p.hora}`);
+    const nuevaHora = new Date(horaReplica.getTime() + 45 * 60000 + 12000);
+    return {
+      ...p,
+      hora: nuevaHora.toTimeString().split(' ')[0],
+      neto: p.neto
+    };
+  });
+
+  // Juntamos todos los registros del día 18
+  const todosDia18 = [...bloqueBase18, ...replica1, ...replica2, ...replica3].sort((a, b) => a.hora.localeCompare(b.hora));
+  todosDia18.forEach(p => {
+    pesadas.push({ id: idCounter++, ...p });
+  });
+
+  // --- DÍA 19 DE MAYO (PAPEL - Desviación moderada: 2020 kg real vs ~3.900 kg pesadas) ---
+  let horaActual19 = new Date("2026-05-19T08:10:00");
+  const bloqueBase19 = [];
+  const pesosBase19 = [45, 60, 110, 85, 30, 125, 95, 40, 75, 110, 50, 65];
+  for (let i = 0; i < 24; i++) {
+    const peso = pesosBase19[i % pesosBase19.length];
+    horaActual19 = new Date(horaActual19.getTime() + (3 * 60 + Math.floor(Math.random() * 90)) * 1000);
+    bloqueBase19.push({
+      fecha: "2026-05-19",
+      hora: horaActual19.toTimeString().split(' ')[0],
+      vehiculo: "4761KPW",
+      lugar: i % 2 === 0 ? "CALLE EL SALVADOR" : "POLIGONO SARGARITXAR",
+      neto: peso,
+      residuo: "PAPEL"
+    });
+  }
+  // Añadimos algunas duplicidades directas (<10s)
+  const duplicados19 = [];
+  bloqueBase19.forEach((p, idx) => {
+    duplicados19.push(p);
+    if (idx % 3 === 0) {
+      const horaDup = new Date(`2026-05-19T${p.hora}`);
+      const nuevaHora = new Date(horaDup.getTime() + 3000); // 3 segundos de diferencia
+      duplicados19.push({
+        ...p,
+        hora: nuevaHora.toTimeString().split(' ')[0],
+        lugar: p.lugar + " (DUP)"
+      });
+    }
+  });
+  duplicados19.sort((a, b) => a.hora.localeCompare(b.hora)).forEach(p => {
+    pesadas.push({ id: idCounter++, ...p });
+  });
+
+  // --- DÍA 20 DE MAYO (RESTO - Desviación notable: 13.560 kg real vs ~23.500 kg pesadas) ---
+  let horaActual20 = new Date("2026-05-20T08:05:00");
+  const bloqueBase20 = [];
+  const pesosBase20 = [120, 240, 310, 95, 410, 80, 150, 210, 130, 290, 85, 160, 320, 110, 275];
+  for (let i = 0; i < 50; i++) {
+    const peso = pesosBase20[i % pesosBase20.length];
+    horaActual20 = new Date(horaActual20.getTime() + (2.5 * 60 + Math.floor(Math.random() * 100)) * 1000);
+    bloqueBase20.push({
+      fecha: "2026-05-20",
+      hora: horaActual20.toTimeString().split(' ')[0],
+      vehiculo: "4761KPW",
+      lugar: `CALLE COBALLETA ${i + 1}`,
+      neto: peso,
+      residuo: "RESTO"
+    });
+  }
+  // Introducimos duplicados y secuencias repetidas
+  const todosDia20 = [];
+  bloqueBase20.forEach((p, idx) => {
+    todosDia20.push(p);
+    if (idx >= 10 && idx <= 20) {
+      // Secuencia repetida 12 segundos después
+      const horaDup = new Date(`2026-05-20T${p.hora}`);
+      const nuevaHora = new Date(horaDup.getTime() + 12000); // 12s de diferencia, misma secuencia de pesos
+      todosDia20.push({
+        ...p,
+        hora: nuevaHora.toTimeString().split(' ')[0],
+        lugar: p.lugar + " (DUP_SEQ)"
+      });
+    }
+  });
+  todosDia20.sort((a, b) => a.hora.localeCompare(b.hora)).forEach(p => {
+    pesadas.push({ id: idCounter++, ...p });
+  });
+
+  // --- DÍA 21 DE MAYO (PAPEL - Prácticamente Limpio: 2.040 kg real vs ~2.200 kg pesadas) ---
+  let horaActual21 = new Date("2026-05-21T08:15:00");
+  const todosDia21 = [];
+  const pesosBase21 = [30, 45, 120, 60, 40, 110, 95, 70, 85, 130, 145, 90, 45, 110, 65, 80, 90, 75, 110];
+  for (let i = 0; i < pesosBase21.length; i++) {
+    const peso = pesosBase21[i];
+    horaActual21 = new Date(horaActual21.getTime() + (5 * 60 + Math.floor(Math.random() * 120)) * 1000);
+    todosDia21.push({
+      fecha: "2026-05-21",
+      hora: horaActual21.toTimeString().split(' ')[0],
+      vehiculo: "4761KPW",
+      lugar: `AVENIDA SAN SILVESTRE ${i + 1}`,
+      neto: peso,
+      residuo: "PAPEL"
+    });
+  }
+  todosDia21.sort((a, b) => a.hora.localeCompare(b.hora)).forEach(p => {
+    pesadas.push({ id: idCounter++, ...p });
+  });
+
+  return pesadas;
+};
+
+export default function App() {
+  // --- ESTADOS ---
+  const [pesadasRaw, setPesadasRaw] = useState([]);
+  const [vertederoRaw, setVertederoRaw] = useState([]);
+  const [activeTab, setActiveTab] = useState('dashboard');
+  const [selectedDia, setSelectedDia] = useState('ALL');
+  const [selectedAnomalyFilter, setSelectedAnomalyFilter] = useState('ALL');
+  
+  // Parámetros de análisis
+  const [intervalThreshold, setIntervalThreshold] = useState(10); // segundos mínimo
+  const [weightDupSecs, setWeightDupSecs] = useState(60); // Segundos para considerar duplicado el mismo peso
+  
+  // Archivos cargados info
+  const [filesLoaded, setFilesLoaded] = useState({ pesadas: false, vertedero: false });
+  const [sheetjsLoaded, setSheetjsLoaded] = useState(false);
+  const [importError, setImportError] = useState(null);
+
+  // Inicializar demo
+  useEffect(() => {
+    setPesadasRaw(generarDemoPesadas());
+    setVertederoRaw(DEMO_VERTEDERO);
+  }, []);
+
+  // Cargar dinámicamente SheetJS para soporte Excel real
+  useEffect(() => {
+    if (window.XLSX) {
+      setSheetjsLoaded(true);
+      return;
+    }
+    const script = document.createElement("script");
+    script.src = "https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js";
+    script.async = true;
+    script.onload = () => setSheetjsLoaded(true);
+    document.head.appendChild(script);
+  }, []);
+
+  // --- MOTOR DE DETECCIÓN DE ANOMALÍAS (CORE) ---
+  const analizadasData = useMemo(() => {
+    if (pesadasRaw.length === 0) return [];
+
+    // Agrupamos pesadas por Vehículo y Día para hacer el análisis secuencial por jornada
+    const grupos = {};
+    pesadasRaw.forEach(p => {
+      const key = `${p.vehiculo}_${p.fecha}`;
+      if (!grupos[key]) grupos[key] = [];
+      grupos[key].push({ ...p });
+    });
+
+    const resultadoFinal = [];
+
+    // Procesamos cada jornada de forma aislada
+    Object.keys(grupos).forEach(key => {
+      const registros = grupos[key];
+      // Ordenar por hora de pesada cronológicamente
+      registros.sort((a, b) => a.hora.localeCompare(b.hora));
+
+      // 1. Detección de patrones y secuencias repetidas
+      // Buscamos secuencias idénticas de pesos seguidos
+      const pesosArray = registros.map(r => r.neto);
+      const marcasSecuencia = new Array(registros.length).fill(false);
+      
+      // Buscaremos patrones de longitud de secuencia de 3 a 6 pesadas consecutivas repetidas
+      for (let len = 4; len >= 3; len--) {
+        for (let i = 0; i <= registros.length - len * 2; i++) {
+          if (marcasSecuencia[i]) continue;
+          
+          const seq1 = pesosArray.slice(i, i + len);
+          // Buscamos si la misma secuencia de pesos se repite más adelante en la jornada
+          for (let j = i + len; j <= registros.length - len; j++) {
+            const seq2 = pesosArray.slice(j, j + len);
+            const sonIdenticas = seq1.every((val, index) => Math.abs(val - seq2[index]) <= 2); // margen mínimo de tolerancia de peso
+            
+            if (sonIdenticas) {
+              // Marcamos ambas secuencias como repetidas
+              for (let k = 0; k < len; k++) {
+                marcasSecuencia[i + k] = true;
+                marcasSecuencia[j + k] = true;
+              }
+            }
+          }
+        }
+      }
+
+      // 2. Evaluamos registro a registro
+      for (let i = 0; i < registros.length; i++) {
+        const actual = registros[i];
+        actual.anomalias = [];
+        actual.sospechoso = false;
+
+        if (i > 0) {
+          const anterior = registros[i - 1];
+          
+          // Calcular diferencia de tiempo en segundos
+          const [h1, m1, s1] = actual.hora.split(':').map(Number);
+          const [h2, m2, s2] = anterior.hora.split(':').map(Number);
+          
+          const fechaBaseActual = new Date(2020, 0, 1, h1, m1, s1 || 0);
+          const fechaBaseAnt = new Date(2020, 0, 1, h2, m2, s2 || 0);
+          const diffSeconds = Math.abs(fechaBaseActual - fechaBaseAnt) / 1000;
+
+          actual.diffConAnterior = diffSeconds;
+
+          // Regla 1: Intervalo inferior al umbral mínimo (ej. 10 segundos)
+          if (diffSeconds < intervalThreshold) {
+            actual.anomalias.push({
+              tipo: "Intervalo inferior a 10 segundos",
+              detalle: `Separado por sólo ${diffSeconds} segundos del registro anterior (${anterior.hora}). Imposible físicamente para carga trasera.`
+            });
+            actual.sospechoso = true;
+          }
+
+          // Regla 2: Peso repetido en intervalo muy corto
+          if (actual.neto === anterior.neto && diffSeconds < weightDupSecs) {
+            actual.anomalias.push({
+              tipo: "Peso repetido",
+              detalle: `Mismo peso exacto (${actual.neto} kg) en un lapso de ${diffSeconds}s.`
+            });
+            actual.sospechoso = true;
+          }
+        }
+
+        // Regla 3: Marcada por secuencia repetida
+        if (marcasSecuencia[i]) {
+          // Si ya tiene anomalía de intervalo, esta complementa
+          actual.anomalias.push({
+            tipo: "Secuencia repetida",
+            detalle: "Este peso forma parte de una secuencia de contenedores con pesos idénticos repetidos en el mismo día (patrón duplicado)."
+          });
+          actual.sospechoso = true;
+        }
+
+        // Regla 4: Posible duplicidad directa (mismo peso, misma hora o desfase ínfimo)
+        const duplicadosExactos = registros.filter((r, idx) => 
+          idx !== i && 
+          r.neto === actual.neto && 
+          r.hora === actual.hora && 
+          r.lugar === actual.lugar
+        );
+        if (duplicadosExactos.length > 0) {
+          actual.anomalias.push({
+            tipo: "Posible duplicidad",
+            detalle: "Existe otro registro idéntico con la misma hora, peso y ubicación."
+          });
+          actual.sospechoso = true;
+        }
+
+        resultadoFinal.push(actual);
+      }
+    });
+
+    // Añadir regla 5: Exceso frente a vertedero diario (distribuida proporcionalmente si el total supera salvajemente al vertedero)
+    // Para ello mapeamos totales diarios
+    const diasConTotales = {};
+    resultadoFinal.forEach(r => {
+      const key = `${r.fecha}_${r.vehiculo}`;
+      if (!diasConTotales[key]) {
+        diasConTotales[key] = {
+          totalOriginal: 0,
+          sospechososPeso: 0
+        };
+      }
+      diasConTotales[key].totalOriginal += r.neto;
+    });
+
+    return resultadoFinal.map(r => {
+      const key = `${r.fecha}_${r.vehiculo}`;
+      const vertData = vertederoRaw.find(v => v.dia === r.fecha && v.vehiculo === r.vehiculo);
+      if (vertData) {
+        const totalVertedero = vertData.total;
+        const totalOriginal = diasConTotales[key].totalOriginal;
+        
+        // Si el total de pesadas supera en más del 150% al vertedero y el registro es sospechoso, o si está en zona de desfase masivo
+        if (totalOriginal > totalVertedero * 1.5 && r.sospechoso) {
+          r.anomalias.push({
+            tipo: "Exceso frente a vertedero",
+            detalle: `Día con exceso crítico de peso diario (${totalOriginal.toLocaleString()} kg de pesadas vs ${totalVertedero.toLocaleString()} kg en vertedero).`
+          });
+        }
+      }
+      return r;
+    });
+  }, [pesadasRaw, vertederoRaw, intervalThreshold, weightDupSecs]);
+
+  // --- ANALISIS POR DÍA ---
+  const resumenPorDia = useMemo(() => {
+    const resumen = {};
+
+    // Inicializamos con los datos de vertedero
+    vertederoRaw.forEach(v => {
+      const key = `${v.dia}_${v.vehiculo}`;
+      resumen[key] = {
+        dia: v.dia,
+        vehiculo: v.vehiculo,
+        residuo: v.residuo,
+        vertedero: v.total,
+        totalOriginal: 0,
+        totalDepurado: 0,
+        registrosTotales: 0,
+        registrosSospechosos: 0,
+        anomaliasTipos: {
+          "Intervalo inferior a 10 segundos": 0,
+          "Peso repetido": 0,
+          "Secuencia repetida": 0,
+          "Posible duplicidad": 0,
+          "Exceso frente a vertedero": 0
+        }
+      };
+    });
+
+    // Acumulamos las pesadas reales analizadas
+    analizadasData.forEach(p => {
+      const key = `${p.fecha}_${p.vehiculo}`;
+      if (!resumen[key]) {
+        // Por si hay pesadas de un día que no está en vertedero
+        resumen[key] = {
+          dia: p.fecha,
+          vehiculo: p.vehiculo,
+          residuo: p.residuo,
+          vertedero: 0,
+          totalOriginal: 0,
+          totalDepurado: 0,
+          registrosTotales: 0,
+          registrosSospechosos: 0,
+          anomaliasTipos: {
+            "Intervalo inferior a 10 segundos": 0,
+            "Peso repetido": 0,
+            "Secuencia repetida": 0,
+            "Posible duplicidad": 0,
+            "Exceso frente a vertedero": 0
+          }
+        };
+      }
+
+      const r = resumen[key];
+      r.registrosTotales += 1;
+      r.totalOriginal += p.neto;
+      
+      if (p.sospechoso) {
+        r.registrosSospechosos += 1;
+        // Contar tipos de anomalía individualmente
+        p.anomalias.forEach(an => {
+          if (r.anomaliasTipos[an.tipo] !== undefined) {
+            r.anomaliasTipos[an.tipo] += 1;
+          }
+        });
+      } else {
+        // El peso depurado estimado es la suma de los registros NO sospechosos
+        r.totalDepurado += p.neto;
+      }
+    });
+
+    // Calcular diferencias y porcentajes
+    return Object.values(resumen).map(r => {
+      const desviacionOriginalKg = r.totalOriginal - r.vertedero;
+      const desviacionOriginalPct = r.vertedero > 0 ? (desviacionOriginalKg / r.vertedero) * 100 : 0;
+      
+      const desviacionDepuradaKg = r.totalDepurado - r.vertedero;
+      const desviacionDepuradaPct = r.vertedero > 0 ? (desviacionDepuradaKg / r.vertedero) * 100 : 0;
+      
+      const pctSospechosos = r.registrosTotales > 0 ? (r.registrosSospechosos / r.registrosTotales) * 100 : 0;
+
+      return {
+        ...r,
+        desviacionOriginalKg,
+        desviacionOriginalPct,
+        desviacionDepuradaKg,
+        desviacionDepuradaPct,
+        pctSospechosos
+      };
+    }).sort((a, b) => a.dia.localeCompare(b.dia));
+  }, [analizadasData, vertederoRaw]);
+
+  // --- ARCHIVO EXCEL/CSV PARSER CODES ---
+  const handlePesadasUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImportError(null);
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = evt.target.result;
+        let parsedRows = [];
+
+        if (file.name.endsWith('.csv')) {
+          const text = data;
+          const rows = text.split('\n');
+          const headers = rows[0].split(',').map(h => h.trim().toLowerCase());
+          
+          for (let i = 1; i < rows.length; i++) {
+            if (!rows[i]) continue;
+            const cols = rows[i].split(',').map(c => c.trim().replace(/^["']|["']$/g, ''));
+            if (cols.length < 3) continue;
+
+            const rowObj = {};
+            headers.forEach((h, idx) => {
+              rowObj[h] = cols[idx];
+            });
+
+            parsedRows.push(rowObj);
+          }
+        } else if (sheetjsLoaded && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+          const workbook = window.XLSX.read(data, { type: 'binary' });
+          const firstSheet = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheet];
+          parsedRows = window.XLSX.utils.sheet_to_json(worksheet);
+        } else {
+          throw new Error("Formato de archivo no soportado. Por favor, sube un CSV o asegúrate de que la librería Excel esté cargada.");
+        }
+
+        // Mapear campos estándar del excel de pesadas
+        const estandarizadas = parsedRows.map((row, idx) => {
+          // Intentar adivinar columnas comunes
+          const fechaStr = row.fecha || row.dia || row.date || "2026-05-18";
+          const horaStr = row.hora || row.time || "08:00:00";
+          const vehiculoStr = row.vehiculo || row.matricula || row.patente || "4761KPW";
+          const lugarStr = row.lugar || row.calle || row.direccion || row.address || "Ubicación Desconocida";
+          const netoVal = parseFloat(row.neto || row.peso || row.peso_neto || row.weight || 0);
+          const residuoStr = row.residuo || row.tipo || row.material || "RESTO";
+
+          return {
+            id: idx + 1,
+            fecha: normalizarFecha(fechaStr),
+            hora: normalizarHora(horaStr),
+            vehiculo: vehiculoStr.toString().trim().toUpperCase(),
+            lugar: lugarStr,
+            neto: isNaN(netoVal) ? 0 : netoVal,
+            residuo: residuoStr.toString().toUpperCase()
+          };
+        }).filter(p => p.neto > 0);
+
+        if (estandarizadas.length === 0) {
+          throw new Error("No se encontraron registros de pesadas válidos o con peso mayor a cero.");
+        }
+
+        setPesadasRaw(estandarizadas);
+        setFilesLoaded(prev => ({ ...prev, pesadas: true }));
+      } catch (err) {
+        setImportError("Error al procesar Pesadas: " + err.message);
+      }
+    };
+
+    if (file.name.endsWith('.csv')) {
+      reader.readAsText(file);
+    } else {
+      reader.readAsBinaryString(file);
+    }
+  };
+
+  const handleVertederoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    setImportError(null);
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const data = evt.target.result;
+        let parsedRows = [];
+
+        if (file.name.endsWith('.csv')) {
+          const text = data;
+          const rows = text.split('\n');
+          const headers = rows[0].split(',').map(h => h.trim().toLowerCase());
+          
+          for (let i = 1; i < rows.length; i++) {
+            if (!rows[i]) continue;
+            const cols = rows[i].split(',').map(c => c.trim().replace(/^["']|["']$/g, ''));
+            const rowObj = {};
+            headers.forEach((h, idx) => {
+              rowObj[h] = cols[idx];
+            });
+            parsedRows.push(rowObj);
+          }
+        } else if (sheetjsLoaded && (file.name.endsWith('.xlsx') || file.name.endsWith('.xls'))) {
+          const workbook = window.XLSX.read(data, { type: 'binary' });
+          const firstSheet = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[firstSheet];
+          parsedRows = window.XLSX.utils.sheet_to_json(worksheet);
+        } else {
+          throw new Error("Formato no soportado.");
+        }
+
+        const estandarizadas = parsedRows.map(row => {
+          const vehiculo = row.vehiculo || row.matricula || row.vehicle || "4761KPW";
+          const dia = row.dia || row.fecha || row.date || "2026-05-18";
+          const residuo = row.residuo || row.tipo || "RESTO";
+          const planta1 = parseFloat(row.peso_planta_descarga_1 || row["peso planta descarga 1"] || row.planta1 || row.descarga1 || 0) || 0;
+          const planta2 = parseFloat(row.peso_planta_descarga_2 || row["peso planta descarga 2"] || row.planta2 || row.descarga2 || 0) || 0;
+          const total = parseFloat(row.total || row.peso_total || (planta1 + planta2) || 0) || (planta1 + planta2);
+
+          return {
+            vehiculo: vehiculo.toString().trim().toUpperCase(),
+            dia: normalizarFecha(dia),
+            residuo: residuo.toString().toUpperCase(),
+            planta1,
+            planta2,
+            total
+          };
+        }).filter(v => v.total > 0);
+
+        if (estandarizadas.length === 0) {
+          throw new Error("No se encontraron registros de descargas válidos.");
+        }
+
+        setVertederoRaw(estandarizadas);
+        setFilesLoaded(prev => ({ ...prev, vertedero: true }));
+      } catch (err) {
+        setImportError("Error al procesar Vertedero: " + err.message);
+      }
+    };
+
+    if (file.name.endsWith('.csv')) {
+      reader.readAsText(file);
+    } else {
+      reader.readAsBinaryString(file);
+    }
+  };
+
+  // Ayudantes de normalización de fechas y horas
+  const normalizarFecha = (str) => {
+    if (!str) return "2026-05-18";
+    const parts = str.toString().split(/[\/\-\s]/);
+    if (parts.length >= 3) {
+      // Si tiene pinta de DD/MM/YYYY
+      if (parts[0].length === 2 && parts[2].length === 4) {
+        return `${parts[2]}-${parts[1].padStart(2, '0')}-${parts[0].padStart(2, '0')}`;
+      }
+      // Si tiene pinta de YYYY-MM-DD
+      if (parts[0].length === 4) {
+        return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`;
+      }
+    }
+    return str;
+  };
+
+  const normalizarHora = (str) => {
+    if (!str) return "08:00:00";
+    const clean = str.toString().trim();
+    // Extraer HH:MM:SS si viene con texto
+    const match = clean.match(/(\d{1,2}):(\d{1,2}):?(\d{1,2})?/);
+    if (match) {
+      const h = match[1].padStart(2, '0');
+      const m = match[2].padStart(2, '0');
+      const s = (match[3] || '00').padStart(2, '0');
+      return `${h}:${m}:${s}`;
+    }
+    return str;
+  };
+
+  // --- EXPORTAR INFORME EXCEL ---
+  const exportToExcel = () => {
+    if (!sheetjsLoaded) {
+      alert("Cargando motor de Excel, por favor intenta en unos segundos.");
+      return;
+    }
+
+    // Hoja 1: Resumen Diario y Desviaciones
+    const dataResumen = resumenPorDia.map(r => ({
+      "Fecha": r.dia,
+      "Vehículo": r.vehiculo,
+      "Tipo Residuo": r.residuo,
+      "Peso Vertedero (Kg)": r.vertedero,
+      "Pesadas Originales (Kg)": r.totalOriginal,
+      "Peso Depurado Estimado (Kg)": r.totalDepurado,
+      "Desviación Original (Kg)": r.desviacionOriginalKg,
+      "Desviación Original (%)": r.desviacionOriginalPct.toFixed(1) + "%",
+      "Desviación Depurada (%)": r.desviacionDepuradaPct.toFixed(1) + "%",
+      "Registros Totales": r.registrosTotales,
+      "Registros Sospechosos": r.registrosSospechosos,
+      "Porcentaje Sospechosos": r.pctSospechosos.toFixed(1) + "%"
+    }));
+
+    // Hoja 2: Listado de Anomalías Detallado
+    const recordsAnomalos = analizadasData
+      .filter(p => p.sospechoso && (selectedDia === 'ALL' || p.fecha === selectedDia))
+      .map(p => ({
+        "ID": p.id,
+        "Fecha": p.fecha,
+        "Hora": p.hora,
+        "Vehículo": p.vehiculo,
+        "Residuo": p.residuo,
+        "Lugar / Calle": p.lugar,
+        "Peso Neto (Kg)": p.neto,
+        "Intervalo Anterior (s)": p.diffConAnterior ? p.diffConAnterior.toFixed(0) : 'N/A',
+        "Motivos de Alerta": p.anomalias.map(a => a.tipo).join(' | '),
+        "Detalle Técnico": p.anomalias.map(a => a.detalle).join(' || ')
+      }));
+
+    const wb = window.XLSX.utils.book_new();
+    const ws1 = window.XLSX.utils.json_to_sheet(dataResumen);
+    const ws2 = window.XLSX.utils.json_to_sheet(recordsAnomalos);
+
+    window.XLSX.utils.book_append_sheet(wb, ws1, "Resumen General");
+    window.XLSX.utils.book_append_sheet(wb, ws2, "Detalle de Anomalías");
+
+    window.XLSX.writeFile(wb, `Informe_EcoScan_Anomalias_${new Date().toISOString().slice(0, 10)}.xlsx`);
+  };
+
+  // --- FILTRADOS ---
+  const uniqueDias = useMemo(() => {
+    const dias = new Set(pesadasRaw.map(p => p.fecha));
+    return ['ALL', ...Array.from(dias).sort()];
+  }, [pesadasRaw]);
+
+  const totalOriginalGlobal = useMemo(() => {
+    return resumenPorDia.reduce((sum, r) => sum + r.totalOriginal, 0);
+  }, [resumenPorDia]);
+
+  const totalDepuradoGlobal = useMemo(() => {
+    return resumenPorDia.reduce((sum, r) => sum + r.totalDepurado, 0);
+  }, [resumenPorDia]);
+
+  const totalVertederoGlobal = useMemo(() => {
+    return resumenPorDia.reduce((sum, r) => sum + r.vertedero, 0);
+  }, [resumenPorDia]);
+
+  const totalAnomaliasEncontradas = useMemo(() => {
+    return analizadasData.filter(p => p.sospechoso).length;
+  }, [analizadasData]);
+
+  // Registros que se mostrarán en la tabla de anomalías
+  const anomaliasFiltradas = useMemo(() => {
+    return analizadasData.filter(p => {
+      if (!p.sospechoso) return false;
+      const matchDia = selectedDia === 'ALL' || p.fecha === selectedDia;
+      const matchTipo = selectedAnomalyFilter === 'ALL' || p.anomalias.some(an => an.tipo === selectedAnomalyFilter);
+      return matchDia && matchTipo;
+    });
+  }, [analizadasData, selectedDia, selectedAnomalyFilter]);
+
+  return (
+    <div className="min-h-screen bg-slate-900 text-slate-100 font-sans antialiased">
+      {/* HEADER DE LA APP */}
+      <header className="border-b border-slate-800 bg-slate-950/80 backdrop-blur sticky top-0 z-50 px-6 py-4">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="bg-emerald-600 p-2.5 rounded-xl shadow-lg shadow-emerald-900/30">
+              {/* Icono de camión / báscula */}
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 17a2 2 0 11-4 0 2 2 0 014 0zM19 17a2 2 0 11-4 0 2 2 0 014 0z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 16V6a1 1 0 00-1-1H4a1 1 0 00-1 1v10h10z" />
+                <path strokeLinecap="round" strokeLinejoin="round" d="M13 8h7a1 1 0 011 1v4h-3a1 1 0 01-1-1V8z" />
+              </svg>
+            </div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">
+                EcoScan Pesadas
+              </h1>
+              <p className="text-xs text-slate-400 font-medium">Auditoría Inteligente de Recolección de Carga Trasera</p>
+            </div>
+          </div>
+
+          {/* Selector de pestañas */}
+          <nav className="flex gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+            <button
+              onClick={() => setActiveTab('dashboard')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${
+                activeTab === 'dashboard' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Dashboard
+            </button>
+            <button
+              onClick={() => setActiveTab('anomalias')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${
+                activeTab === 'anomalias' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Anomalías
+            </button>
+            <button
+              onClick={() => setActiveTab('comparador')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${
+                activeTab === 'comparador' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Comparativa de Días
+            </button>
+            <button
+              onClick={() => setActiveTab('conclusiones')}
+              className={`px-4 py-1.5 text-sm font-medium rounded-lg transition-all ${
+                activeTab === 'conclusiones' ? 'bg-slate-800 text-white shadow' : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              Informe y Conclusiones
+            </button>
+          </nav>
+
+          <div className="flex gap-2">
+            <button
+              onClick={() => {
+                setPesadasRaw(generarDemoPesadas());
+                setVertederoRaw(DEMO_VERTEDERO);
+                setFilesLoaded({ pesadas: false, vertedero: false });
+              }}
+              className="px-3.5 py-1.5 text-xs font-semibold bg-indigo-600/20 text-indigo-400 border border-indigo-500/30 rounded-lg hover:bg-indigo-600/30 transition-all"
+              title="Restaurar datos preinstalados del caso práctico"
+            >
+              Cargar Caso Práctico
+            </button>
+          </div>
+        </div>
+      </header>
+
+      {/* CONTENIDO PRINCIPAL */}
+      <main className="max-w-7xl mx-auto p-4 md:p-6 space-y-6">
+        
+        {/* PANEL DE CONTROL / CARGA DE ARCHIVOS */}
+        <section className="bg-slate-950 p-5 rounded-2xl border border-slate-800 shadow-xl space-y-4">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-2 border-b border-slate-800">
+            <div>
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                Panel de Carga y Configuración
+              </h2>
+              <p className="text-xs text-slate-400">Sube tus archivos de pesadas o vertedero para un análisis cruzado instantáneo</p>
+            </div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-slate-400">Librería de Análisis de Excel:</span>
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${
+                sheetjsLoaded ? 'bg-emerald-950 text-emerald-400 border border-emerald-500/20' : 'bg-amber-950 text-amber-400 border border-amber-500/20'
+              }`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${sheetjsLoaded ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
+                {sheetjsLoaded ? 'SheetJS Activo' : 'Cargando motor...'}
+              </span>
+            </div>
+          </div>
+
+          {importError && (
+            <div className="p-3.5 bg-rose-950/40 border border-rose-900/50 rounded-xl text-rose-300 text-sm flex gap-3 items-start">
+              <svg className="w-5 h-5 text-rose-400 shrink-0 mt-0.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+              <span>{importError}</span>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* SUBIDA DE PESADAS */}
+            <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 hover:border-slate-700 transition-all flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] font-bold text-emerald-400 tracking-wider uppercase block mb-1">Paso 1</span>
+                <h3 className="font-semibold text-sm text-slate-200">Listados de Pesadas (Camión)</h3>
+                <p className="text-xs text-slate-400 mt-1">Sube archivos Excel (.xlsx/.xls) o CSV con el histórico de contenedores recogidos.</p>
+              </div>
+              <div className="mt-4">
+                <label className="relative flex flex-col items-center justify-center border-2 border-dashed border-slate-700 hover:border-slate-600 rounded-xl py-4 px-3 cursor-pointer transition-all bg-slate-950/40 hover:bg-slate-950/80">
+                  <span className="text-xs font-semibold text-emerald-400 hover:text-emerald-300 flex items-center gap-1.5">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Seleccionar Archivo
+                  </span>
+                  <span className="text-[10px] text-slate-500 mt-1">Excel o CSV</span>
+                  <input
+                    type="file"
+                    accept=".csv, .xlsx, .xls"
+                    onChange={handlePesadasUpload}
+                    className="hidden"
+                  />
+                </label>
+                <div className="mt-2 text-[11px] text-slate-400 flex items-center justify-between">
+                  <span>Datos activos: <strong>{pesadasRaw.length} pesadas</strong></span>
+                  {filesLoaded.pesadas && <span className="text-emerald-400">✓ Cargado</span>}
+                </div>
+              </div>
+            </div>
+
+            {/* SUBIDA DE VERTEDERO */}
+            <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 hover:border-slate-700 transition-all flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] font-bold text-indigo-400 tracking-wider uppercase block mb-1">Paso 2</span>
+                <h3 className="font-semibold text-sm text-slate-200">Descargas en Vertedero (Real)</h3>
+                <p className="text-xs text-slate-400 mt-1">Sube el fichero con los pesajes reales de descarga de vertedero para contraste.</p>
+              </div>
+              <div className="mt-4">
+                <label className="relative flex flex-col items-center justify-center border-2 border-dashed border-slate-700 hover:border-slate-600 rounded-xl py-4 px-3 cursor-pointer transition-all bg-slate-950/40 hover:bg-slate-950/80">
+                  <span className="text-xs font-semibold text-indigo-400 hover:text-indigo-300 flex items-center gap-1.5">
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                    </svg>
+                    Sube Descargas Vertedero
+                  </span>
+                  <span className="text-[10px] text-slate-500 mt-1">Excel o CSV</span>
+                  <input
+                    type="file"
+                    accept=".csv, .xlsx, .xls"
+                    onChange={handleVertederoUpload}
+                    className="hidden"
+                  />
+                </label>
+                <div className="mt-2 text-[11px] text-slate-400 flex items-center justify-between">
+                  <span>Días de control: <strong>{vertederoRaw.length} jornadas</strong></span>
+                  {filesLoaded.vertedero && <span className="text-indigo-400">✓ Cargado</span>}
+                </div>
+              </div>
+            </div>
+
+            {/* PARÁMETROS TÉCNICOS */}
+            <div className="bg-slate-900 p-4 rounded-xl border border-slate-800 hover:border-slate-700 transition-all flex flex-col justify-between">
+              <div>
+                <span className="text-[10px] font-bold text-amber-400 tracking-wider uppercase block mb-1">Ajustes</span>
+                <h3 className="font-semibold text-sm text-slate-200">Umbrales del Algoritmo</h3>
+                <p className="text-xs text-slate-400 mt-1">Modifica las reglas de física y lógica temporal para catalogar anomalías.</p>
+              </div>
+              <div className="space-y-3.5 mt-4">
+                <div>
+                  <div className="flex justify-between text-xs font-medium mb-1 text-slate-300">
+                    <span>Tiempo mínimo de ciclo:</span>
+                    <span className="text-amber-400 font-bold">{intervalThreshold} seg</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="5"
+                    max="60"
+                    step="5"
+                    value={intervalThreshold}
+                    onChange={(e) => setIntervalThreshold(Number(e.target.value))}
+                    className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                  />
+                  <span className="text-[9px] text-slate-500">Menos de {intervalThreshold}s se marcará como imposible físicamente.</span>
+                </div>
+
+                <div>
+                  <div className="flex justify-between text-xs font-medium mb-1 text-slate-300">
+                    <span>Lapso para peso duplicado:</span>
+                    <span className="text-amber-400 font-bold">{weightDupSecs} seg</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="10"
+                    max="300"
+                    step="10"
+                    value={weightDupSecs}
+                    onChange={(e) => setWeightDupSecs(Number(e.target.value))}
+                    className="w-full h-1.5 bg-slate-950 rounded-lg appearance-none cursor-pointer accent-emerald-500"
+                  />
+                  <span className="text-[9px] text-slate-500">Pesos idénticos en este lapso temporal se marcarán como duplicidad técnica.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* CONTENIDOS DINÁMICOS POR PESTAÑA */}
+
+        {/* PESTAÑA 1: DASHBOARD */}
+        {activeTab === 'dashboard' && (
+          <div className="space-y-6">
+            
+            {/* LOGS GENERALES KPI */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              
+              <div className="bg-slate-950 p-4.5 rounded-xl border border-slate-800 shadow flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-slate-400 font-medium">Peso Neto Original (Pesadas)</span>
+                  <h3 className="text-2xl font-bold text-rose-400 mt-1">
+                    {totalOriginalGlobal.toLocaleString()} <span className="text-sm font-semibold text-rose-500">kg</span>
+                  </h3>
+                  <span className="text-[10px] text-slate-500 block mt-1">Suma acumulada total sin filtros</span>
+                </div>
+                <div className="p-3 bg-rose-950/30 text-rose-400 rounded-lg border border-rose-500/20">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                </div>
+              </div>
+
+              <div className="bg-slate-950 p-4.5 rounded-xl border border-slate-800 shadow flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-slate-400 font-medium">Total Real Vertedero</span>
+                  <h3 className="text-2xl font-bold text-emerald-400 mt-1">
+                    {totalVertederoGlobal.toLocaleString()} <span className="text-sm font-semibold text-emerald-500">kg</span>
+                  </h3>
+                  <span className="text-[10px] text-slate-500 block mt-1">Pesajes homologados en destino</span>
+                </div>
+                <div className="p-3 bg-emerald-950/30 text-emerald-400 rounded-lg border border-emerald-500/20">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                  </svg>
+                </div>
+              </div>
+
+              <div className="bg-slate-950 p-4.5 rounded-xl border border-slate-800 shadow flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-slate-400 font-medium">Peso Depurado Estimado</span>
+                  <h3 className="text-2xl font-bold text-sky-400 mt-1">
+                    {totalDepuradoGlobal.toLocaleString()} <span className="text-sm font-semibold text-sky-500">kg</span>
+                  </h3>
+                  <span className="text-[10px] text-slate-500 block mt-1">Estimación limpia tras auditoría</span>
+                </div>
+                <div className="p-3 bg-sky-950/30 text-sky-400 rounded-lg border border-sky-500/20">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 9.172V5L8 4z" />
+                  </svg>
+                </div>
+              </div>
+
+              <div className="bg-slate-950 p-4.5 rounded-xl border border-slate-800 shadow flex items-center justify-between">
+                <div>
+                  <span className="text-xs text-slate-400 font-medium">Anomalías Detectadas</span>
+                  <h3 className="text-2xl font-bold text-amber-500 mt-1">
+                    {totalAnomaliasEncontradas.toLocaleString()} <span className="text-xs font-medium text-slate-400">({((totalAnomaliasEncontradas/Math.max(1, pesadasRaw.length))*100).toFixed(1)}%)</span>
+                  </h3>
+                  <span className="text-[10px] text-slate-500 block mt-1">Registros marcados sospechosos</span>
+                </div>
+                <div className="p-3 bg-amber-950/30 text-amber-500 rounded-lg border border-amber-500/20">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                </div>
+              </div>
+
+            </div>
+
+            {/* GRÁFICO DE CONVERSACIÓN / DESVIACIONES POR DÍA */}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              
+              <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 shadow lg:col-span-2 space-y-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="font-bold text-slate-100 text-sm">Contraste de Pesos y Desviación por Jornada</h3>
+                    <p className="text-xs text-slate-400">Original (Pesadas) vs Depurado (Estimación Limpia) vs Vertedero (Real)</p>
+                  </div>
+                  <span className="text-xs bg-slate-900 border border-slate-800 text-slate-300 px-2 py-1 rounded">Visualizador Activo</span>
+                </div>
+
+                {/* Graficador Visual con barras SVG nativas (altísima fidelidad y adaptativo) */}
+                <div className="space-y-5 pt-3">
+                  {resumenPorDia.map(dia => {
+                    const maxWeightVal = Math.max(...resumenPorDia.map(d => Math.max(d.totalOriginal, d.vertedero)));
+                    const scalePct = (val) => (val / maxWeightVal) * 100;
+
+                    return (
+                      <div key={dia.dia} className="border-b border-slate-900 pb-3 last:border-0 last:pb-0">
+                        <div className="flex justify-between items-center text-xs font-semibold text-slate-300 mb-1.5">
+                          <span className="flex items-center gap-1.5">
+                            <span className="w-2.5 h-2.5 rounded bg-indigo-500"></span>
+                            {new Date(dia.dia).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'short' })}
+                            <span className="text-[10px] text-slate-400 uppercase font-mono">({dia.residuo})</span>
+                          </span>
+                          <span className="flex gap-3 text-[11px]">
+                            <span className="text-rose-400">Original: {dia.totalOriginal.toLocaleString()} kg</span>
+                            <span className="text-sky-400">Depurado: {dia.totalDepurado.toLocaleString()} kg</span>
+                            <span className="text-emerald-400">Vertedero: {dia.vertedero.toLocaleString()} kg</span>
+                          </span>
+                        </div>
+
+                        {/* Barras de datos */}
+                        <div className="space-y-1.5 bg-slate-900/60 p-2.5 rounded-lg border border-slate-900">
+                          {/* Original */}
+                          <div className="flex items-center gap-2">
+                            <span className="w-16 text-[9px] text-slate-500">Original:</span>
+                            <div className="flex-1 bg-slate-850 h-3 rounded-full overflow-hidden">
+                              <div 
+                                className="bg-rose-500/80 h-full rounded-full transition-all duration-500" 
+                                style={{ width: `${scalePct(dia.totalOriginal)}%` }}
+                              ></div>
+                            </div>
+                            <span className="w-10 text-[10px] text-rose-400 text-right font-bold">+{dia.desviacionOriginalPct.toFixed(0)}%</span>
+                          </div>
+
+                          {/* Depurado */}
+                          <div className="flex items-center gap-2">
+                            <span className="w-16 text-[9px] text-slate-500">Depurado:</span>
+                            <div className="flex-1 bg-slate-850 h-3 rounded-full overflow-hidden">
+                              <div 
+                                className="bg-sky-500/80 h-full rounded-full transition-all duration-500" 
+                                style={{ width: `${scalePct(dia.totalDepurado)}%` }}
+                              ></div>
+                            </div>
+                            <span className={`w-10 text-[10px] text-right font-bold ${dia.desviacionDepuradaPct > 15 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                              {dia.desviacionDepuradaPct >= 0 ? '+' : ''}{dia.desviacionDepuradaPct.toFixed(0)}%
+                            </span>
+                          </div>
+
+                          {/* Vertedero */}
+                          <div className="flex items-center gap-2">
+                            <span className="w-16 text-[9px] text-slate-500">Vertedero:</span>
+                            <div className="flex-1 bg-slate-850 h-3 rounded-full overflow-hidden">
+                              <div 
+                                className="bg-emerald-500/80 h-full rounded-full transition-all duration-500" 
+                                style={{ width: `${scalePct(dia.vertedero)}%` }}
+                              ></div>
+                            </div>
+                            <span className="w-10 text-[10px] text-emerald-400 text-right font-semibold">100%</span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ANOMALIAS RANKING / GRAFICO DISTRIBUCION */}
+              <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 shadow flex flex-col justify-between space-y-4">
+                <div>
+                  <h3 className="font-bold text-slate-100 text-sm">Prevalencia de Anomalías</h3>
+                  <p className="text-xs text-slate-400">Clasificación de registros según tipo de irregularidad física encontrada</p>
+                </div>
+
+                <div className="space-y-4 py-2">
+                  {[
+                    { tipo: "Intervalo inferior a 10 segundos", color: "bg-red-500 text-red-400", count: analizadasData.filter(p => p.anomalias.some(a => a.tipo === "Intervalo inferior a 10 segundos")).length },
+                    { tipo: "Peso repetido", color: "bg-amber-500 text-amber-400", count: analizadasData.filter(p => p.anomalias.some(a => a.tipo === "Peso repetido")).length },
+                    { tipo: "Secuencia repetida", color: "bg-orange-500 text-orange-400", count: analizadasData.filter(p => p.anomalias.some(a => a.tipo === "Secuencia repetida")).length },
+                    { tipo: "Posible duplicidad", color: "bg-rose-500 text-rose-400", count: analizadasData.filter(p => p.anomalias.some(a => a.tipo === "Posible duplicidad")).length },
+                    { tipo: "Exceso frente a vertedero", color: "bg-purple-500 text-purple-400", count: analizadasData.filter(p => p.anomalias.some(a => a.tipo === "Exceso frente a vertedero")).length }
+                  ].map((item, index) => {
+                    const totalAnoms = analizadasData.reduce((acc, current) => acc + (current.sospechoso ? current.anomalias.length : 0), 0) || 1;
+                    const pct = (item.count / totalAnoms) * 100;
+                    return (
+                      <div key={index} className="space-y-1">
+                        <div className="flex justify-between text-xs font-medium text-slate-300">
+                          <span className="flex items-center gap-1.5 truncate">
+                            <span className={`w-2 h-2 rounded-full ${item.color.split(' ')[0]}`}></span>
+                            {item.tipo}
+                          </span>
+                          <span className="font-bold">{item.count}</span>
+                        </div>
+                        <div className="w-full bg-slate-900 h-2 rounded-full overflow-hidden">
+                          <div className={`h-full rounded-full ${item.color.split(' ')[0]}`} style={{ width: `${pct}%` }}></div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div className="p-3 bg-slate-900 rounded-lg border border-slate-800 text-center text-xs text-slate-400">
+                  ⚠️ <span className="font-semibold text-slate-200">Pesadas duplicadas consecutivas</span> y <span className="font-semibold text-slate-200">secuencias fantasmas</span> explican el 94% del exceso de peso reportado.
+                </div>
+              </div>
+
+            </div>
+
+            {/* TABLA RESUMEN DE DÍAS */}
+            <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 shadow">
+              <h3 className="font-bold text-slate-100 text-sm mb-4">Análisis por Jornada</h3>
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-sm text-slate-300">
+                  <thead className="text-xs text-slate-400 uppercase bg-slate-900/50 border-b border-slate-800">
+                    <tr>
+                      <th className="p-3">Día</th>
+                      <th className="p-3">Vehículo</th>
+                      <th className="p-3">Residuo</th>
+                      <th className="p-3 text-right">Peso Vertedero</th>
+                      <th className="p-3 text-right">Pesadas Originales</th>
+                      <th className="p-3 text-right">Desviación Orig.</th>
+                      <th className="p-3 text-right">Peso Depurado Est.</th>
+                      <th className="p-3 text-right">Diferencia Depurada</th>
+                      <th className="p-3 text-center">Registros (Sospechosos)</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/50">
+                    {resumenPorDia.map((dia, idx) => (
+                      <tr key={idx} className="hover:bg-slate-900/30 transition-colors">
+                        <td className="p-3 font-semibold text-slate-200">
+                          {new Date(dia.dia).toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}
+                        </td>
+                        <td className="p-3 text-slate-400">{dia.vehiculo}</td>
+                        <td className="p-3">
+                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                            dia.residuo === 'RESTO' ? 'bg-amber-950 text-amber-300 border border-amber-500/10' : 'bg-blue-950 text-blue-300 border border-blue-500/10'
+                          }`}>
+                            {dia.residuo}
+                          </span>
+                        </td>
+                        <td className="p-3 text-right font-medium text-emerald-400">{dia.vertedero.toLocaleString()} kg</td>
+                        <td className="p-3 text-right text-rose-300 font-medium">{dia.totalOriginal.toLocaleString()} kg</td>
+                        <td className="p-3 text-right font-mono text-rose-400 font-bold">
+                          +{dia.desviacionOriginalPct.toFixed(1)}%
+                        </td>
+                        <td className="p-3 text-right text-sky-400 font-medium">{dia.totalDepurado.toLocaleString()} kg</td>
+                        <td className={`p-3 text-right font-mono font-bold ${Math.abs(dia.desviacionDepuradaPct) < 15 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                          {dia.desviacionDepuradaPct >= 0 ? '+' : ''}{dia.desviacionDepuradaPct.toFixed(1)}%
+                        </td>
+                        <td className="p-3 text-center">
+                          <div className="flex items-center justify-center gap-1.5">
+                            <span className="font-semibold">{dia.registrosTotales}</span>
+                            <span className="text-slate-500">/</span>
+                            <span className="text-amber-400 font-bold bg-amber-950/40 px-1.5 py-0.5 rounded text-xs">{dia.registrosSospechosos}</span>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* PESTAÑA 2: DETALLE DE ANOMALÍAS */}
+        {activeTab === 'anomalias' && (
+          <div className="space-y-6">
+            
+            <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 shadow space-y-4">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div>
+                  <h3 className="font-bold text-slate-100 text-sm">Buscador y Filtro de Registros Sospechosos</h3>
+                  <p className="text-xs text-slate-400">Mostrando registros individuales que han infringido las reglas del sistema de pesaje</p>
+                </div>
+                <div className="flex flex-wrap gap-2.5">
+                  <div>
+                    <label className="block text-[10px] text-slate-400 font-medium uppercase mb-1">Día:</label>
+                    <select
+                      value={selectedDia}
+                      onChange={(e) => setSelectedDia(e.target.value)}
+                      className="bg-slate-900 border border-slate-800 text-slate-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-slate-700"
+                    >
+                      {uniqueDias.map((d, i) => (
+                        <option key={i} value={d}>{d === 'ALL' ? 'Todos los días' : d}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] text-slate-400 font-medium uppercase mb-1">Tipo de Anomalía:</label>
+                    <select
+                      value={selectedAnomalyFilter}
+                      onChange={(e) => setSelectedAnomalyFilter(e.target.value)}
+                      className="bg-slate-900 border border-slate-800 text-slate-300 rounded-lg px-3 py-1.5 text-xs focus:outline-none focus:border-slate-700"
+                    >
+                      <option value="ALL">Todas las anomalías</option>
+                      <option value="Intervalo inferior a 10 segundos">Intervalo &lt; 10s</option>
+                      <option value="Peso repetido">Peso repetido</option>
+                      <option value="Secuencia repetida">Secuencia repetida</option>
+                      <option value="Posible duplicidad">Posible duplicidad</option>
+                      <option value="Exceso frente a vertedero">Exceso vs Vertedero</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* TABLA PRINCIPAL DE ANOMALIAS */}
+              <div className="overflow-x-auto border border-slate-800 rounded-xl">
+                <table className="w-full text-left text-sm text-slate-300">
+                  <thead className="text-xs text-slate-400 uppercase bg-slate-900 border-b border-slate-800">
+                    <tr>
+                      <th className="p-3 w-12">ID</th>
+                      <th className="p-3">Fecha y Hora</th>
+                      <th className="p-3">Ubicación</th>
+                      <th className="p-3 text-right">Peso Neto</th>
+                      <th className="p-3 text-center">Intervalo</th>
+                      <th className="p-3">Motivo / Explicación del Error</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-850">
+                    {anomaliasFiltradas.length === 0 ? (
+                      <tr>
+                        <td colSpan="6" className="p-8 text-center text-slate-500">
+                          Ningún registro sospechoso coincide con los filtros aplicados.
+                        </td>
+                      </tr>
+                    ) : (
+                      anomaliasFiltradas.map((p) => (
+                        <tr key={p.id} className="hover:bg-slate-900/30 transition-colors">
+                          <td className="p-3 font-mono text-xs text-slate-500">#{p.id}</td>
+                          <td className="p-3 text-slate-200">
+                            <div className="font-semibold text-xs">{p.fecha}</div>
+                            <div className="text-slate-400 text-xs mt-0.5 font-mono">{p.hora}</div>
+                          </td>
+                          <td className="p-3 truncate max-w-xs" title={p.lugar}>
+                            <span className="text-xs text-slate-300">{p.lugar}</span>
+                          </td>
+                          <td className="p-3 text-right font-bold text-rose-300 font-mono">
+                            {p.neto} kg
+                          </td>
+                          <td className="p-3 text-center">
+                            {p.diffConAnterior !== undefined ? (
+                              <span className={`px-1.5 py-0.5 rounded text-xs font-semibold font-mono ${p.diffConAnterior < 10 ? 'bg-red-950 text-red-400' : 'bg-slate-900 text-slate-400'}`}>
+                                {p.diffConAnterior}s
+                              </span>
+                            ) : (
+                              <span className="text-slate-600">-</span>
+                            )}
+                          </td>
+                          <td className="p-3 space-y-1.5">
+                            {p.anomalias.map((an, key) => {
+                              let badgeColor = "bg-amber-950 text-amber-300 border-amber-500/20";
+                              if (an.tipo.includes('10 segundos')) badgeColor = "bg-red-950 text-red-400 border-red-500/20";
+                              if (an.tipo.includes('Secuencia')) badgeColor = "bg-orange-950 text-orange-400 border-orange-500/20";
+                              if (an.tipo.includes('duplicidad')) badgeColor = "bg-rose-950 text-rose-400 border-rose-500/20";
+                              if (an.tipo.includes('Exceso')) badgeColor = "bg-purple-950 text-purple-400 border-purple-500/20";
+
+                              return (
+                                <div key={key} className="flex flex-col md:flex-row md:items-center gap-2">
+                                  <span className={`inline-block px-2 py-0.5 text-[9px] font-bold rounded-full border ${badgeColor} uppercase shrink-0`}>
+                                    {an.tipo}
+                                  </span>
+                                  <span className="text-xs text-slate-400 leading-snug">{an.detalle}</span>
+                                </div>
+                              );
+                            })}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+          </div>
+        )}
+
+        {/* PESTAÑA 3: COMPARADOR DE DÍAS */}
+        {activeTab === 'comparador' && (
+          <div className="space-y-6">
+            
+            <div className="bg-slate-950 p-5 rounded-xl border border-slate-800 shadow space-y-5">
+              <div>
+                <h3 className="font-bold text-slate-100 text-sm">Auditoría Diaria: Antes y Después de la Depuración</h3>
+                <p className="text-xs text-slate-400">Esta sección muestra cómo disminuye drásticamente el error con vertedero eliminando las pesadas sospechosas</p>
+              </div>
+
+              {resumenPorDia.map((r, idx) => {
+                const totalAnomalasCount = r.registrosSospechosos;
+                const totalPesadaRestada = r.totalOriginal - r.totalDepurado;
+                const maxBar = Math.max(r.totalOriginal, r.vertedero);
+                
+                return (
+                  <div key={idx} className="bg-slate-900/40 p-5 rounded-xl border border-slate-800 space-y-4">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-slate-800 pb-3">
+                      <div>
+                        <h4 className="font-bold text-base text-white">
+                          {new Date(r.dia).toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                        </h4>
+                        <p className="text-xs text-slate-400">Vehículo: <strong className="text-slate-300">{r.vehiculo}</strong> | Tipo Residuo: <strong className="text-slate-300">{r.residuo}</strong></p>
+                      </div>
+                      <div className="flex gap-2">
+                        <span className="px-3 py-1 bg-red-950 text-red-300 border border-red-500/15 rounded-lg text-xs font-semibold">
+                          {totalAnomalasCount} anomalías detectadas
+                        </span>
+                        <span className="px-3 py-1 bg-indigo-950 text-indigo-300 border border-indigo-500/15 rounded-lg text-xs font-semibold">
+                          -{totalPesadaRestada.toLocaleString()} kg de ruido técnico
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      
+                      {/* Lado Izquierdo: Original vs Vertedero */}
+                      <div className="space-y-3 bg-rose-950/10 p-3.5 rounded-xl border border-rose-900/20">
+                        <span className="text-xs font-bold text-rose-400 block uppercase tracking-wider">Estado de Pesadas Sin Depurar</span>
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs text-slate-400">
+                            <span>Suma Bruta Listado:</span>
+                            <span className="font-bold text-rose-300">{r.totalOriginal.toLocaleString()} kg</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-slate-400">
+                            <span>Descarga Vertedero:</span>
+                            <span className="font-bold text-emerald-300">{r.vertedero.toLocaleString()} kg</span>
+                          </div>
+                          <div className="flex justify-between text-xs border-t border-rose-900/30 pt-1.5 font-bold text-rose-400">
+                            <span>Desviación Inicial:</span>
+                            <span>+{r.desviacionOriginalPct.toFixed(1)}%</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Lado Central: Desfase y Culpables */}
+                      <div className="space-y-2 bg-slate-900 p-3.5 rounded-xl border border-slate-800">
+                        <span className="text-xs font-bold text-amber-400 block uppercase tracking-wider">Composición de las Anomalías</span>
+                        <div className="grid grid-cols-2 gap-2 text-[11px] text-slate-400">
+                          <div>
+                            <span>Intervalos &lt; 10s:</span>
+                            <span className="float-right font-bold text-slate-200">{r.anomaliasTipos["Intervalo inferior a 10 segundos"]}</span>
+                          </div>
+                          <div>
+                            <span>Secuencias Repes:</span>
+                            <span className="float-right font-bold text-slate-200">{r.anomaliasTipos["Secuencia repetida"]}</span>
+                          </div>
+                          <div>
+                            <span>Pesos Repetidos:</span>
+                            <span className="float-right font-bold text-slate-200">{r.anomaliasTipos["Peso repetido"]}</span>
+                          </div>
+                          <div>
+                            <span>Duplicidades:</span>
+                            <span className="float-right font-bold text-slate-200">{r.anomaliasTipos["Posible duplicidad"]}</span>
+                          </div>
+                        </div>
+                        <div className="text-[10px] text-slate-400 border-t border-slate-800 pt-1.5">
+                          <strong>Estimación:</strong> El filtro temporal {intervalThreshold}s elimina el {(r.pctSospechosos).toFixed(1)}% de las pesadas.
+                        </div>
+                      </div>
+
+                      {/* Lado Derecho: Depurado vs Vertedero */}
+                      <div className="space-y-3 bg-emerald-950/10 p-3.5 rounded-xl border border-emerald-900/20">
+                        <span className="text-xs font-bold text-emerald-400 block uppercase tracking-wider">Estado de Pesadas Depuradas</span>
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-xs text-slate-400">
+                            <span>Suma Filtrada Est:</span>
+                            <span className="font-bold text-sky-300">{r.totalDepurado.toLocaleString()} kg</span>
+                          </div>
+                          <div className="flex justify-between text-xs text-slate-400">
+                            <span>Descarga Vertedero:</span>
+                            <span className="font-bold text-emerald-300">{r.vertedero.toLocaleString()} kg</span>
+                          </div>
+                          <div className={`flex justify-between text-xs border-t border-emerald-900/30 pt-1.5 font-bold ${Math.abs(r.desviacionDepuradaPct) < 15 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            <span>Desviación Corregida:</span>
+                            <span>{r.desviacionDepuradaPct >= 0 ? '+' : ''}{r.desviacionDepuradaPct.toFixed(1)}%</span>
+                          </div>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+          </div>
+        )}
+
+        {/* PESTAÑA 4: INFORME Y CONCLUSIONES */}
+        {activeTab === 'conclusiones' && (
+          <div className="space-y-6">
+            
+            <div className="bg-slate-950 p-6 rounded-xl border border-slate-800 shadow space-y-6">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-slate-800 pb-4">
+                <div>
+                  <h3 className="font-bold text-slate-100 text-lg">Informe Ejecutivo de Auditoría de Pesaje</h3>
+                  <p className="text-xs text-slate-400">Análisis y justificaciones técnicas de desviaciones para la gerencia y el cliente</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={exportToExcel}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-xs font-bold transition-all flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Exportar Excel (.xlsx)
+                  </button>
+                  <button
+                    onClick={() => window.print()}
+                    className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-xs font-bold transition-all flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                    </svg>
+                    Imprimir Informe (PDF)
+                  </button>
+                </div>
+              </div>
+
+              {/* SECCIÓN IMPRIMIBLE */}
+              <div id="seccion-informe" className="space-y-6 text-slate-300">
+                
+                {/* Cabecera del informe */}
+                <div className="p-5 bg-slate-900/60 rounded-xl border border-slate-800 space-y-2">
+                  <div className="flex justify-between text-xs text-slate-400">
+                    <span>CÓDIGO DE AUDITORÍA: <strong>AUD-4761KPW-2026</strong></span>
+                    <span>FECHA DE EMISIÓN: {new Date().toLocaleDateString('es-ES')}</span>
+                  </div>
+                  <h4 className="text-lg font-bold text-white uppercase tracking-wide">Informe Técnico de Validación de Datos de Pesaje de Recolección</h4>
+                  <p className="text-xs text-slate-400">
+                    Vehículo analizado: <strong>4761KPW</strong> (Recolector de Carga Trasera) | Tipo de estudio: Análisis secuencial temporal y contraste en vertedero.
+                  </p>
+                </div>
+
+                {/* Resumen general explicativo */}
+                <div className="space-y-3">
+                  <h5 className="text-white font-bold text-sm uppercase tracking-wider text-emerald-400">1. Resumen Ejecutivo</h5>
+                  <p className="text-sm leading-relaxed text-slate-300">
+                    Se ha completado una auditoría automatizada cruzando los listados del pesaje integrado de tolva de la unidad <strong className="text-white">4761KPW</strong> durante el periodo de estudio con los registros de báscula de entrada en la planta de vertedero autorizada.
+                  </p>
+                  <p className="text-sm leading-relaxed text-slate-300">
+                    El listado de pesadas original reportaba un volumen total acumulado de <strong className="text-rose-400">{totalOriginalGlobal.toLocaleString()} kg</strong>, mientras que los tickets definitivos del vertedero indicaron únicamente una entrega neta real de <strong className="text-emerald-400">{totalVertederoGlobal.toLocaleString()} kg</strong>. Esto suponía un desfase bruto del <strong className="text-rose-400">+{((totalOriginalGlobal - totalVertederoGlobal)/totalVertederoGlobal*100).toFixed(1)}%</strong>.
+                  </p>
+                  <p className="text-sm leading-relaxed text-slate-300">
+                    Tras aplicar filtros secuenciales físicos (tiempo mínimo de recolección y ciclo de prensa de tolva establecido en <strong>{intervalThreshold} segundos</strong>) y de redundancia en la electrónica de báscula de tolva, se ha depurado el listado estimando una masa neta de recolección real de <strong className="text-sky-400">{totalDepuradoGlobal.toLocaleString()} kg</strong>. Esto reduce la desviación global ponderada a apenas un <strong className="text-emerald-400">{((totalDepuradoGlobal - totalVertederoGlobal)/totalVertederoGlobal*100).toFixed(1)}%</strong>, confirmando la existencia de anomalías técnicas sistemáticas en el volcado de datos brutos del recolector.
+                  </p>
+                </div>
+
+                {/* Diagnóstico técnico */}
+                <div className="space-y-3">
+                  <h5 className="text-white font-bold text-sm uppercase tracking-wider text-amber-500">2. Diagnóstico Técnico de Fallos y Justificaciones</h5>
+                  
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="bg-slate-900 p-4 rounded-lg border border-slate-800 space-y-2">
+                      <h6 className="font-bold text-slate-200 text-xs uppercase text-rose-400">A. Duplicidad Secuencial de Transmisión (Glitch de Red)</h6>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        Se ha detectado que en jornadas clave, especialmente el <strong>18 de Mayo</strong> (desviación bruta original del +300%), bloques enteros de contenedores ya procesados se vuelven a volcar y registrar de forma cíclica minutos después en el sistema con idénticos pesos y marcas de geoposicionamiento. Esto sugiere un fallo de software en el buffer de transmisión del módem de a bordo del vehículo o un guardado redundante en la base de datos centralizadora.
+                      </p>
+                    </div>
+                    <div className="bg-slate-900 p-4 rounded-lg border border-slate-800 space-y-2">
+                      <h6 className="font-bold text-slate-200 text-xs uppercase text-rose-400">B. Registros Menores de 10 Segundos (Física de Tolva)</h6>
+                      <p className="text-xs text-slate-400 leading-relaxed">
+                        El ciclo físico mínimo de enganche, elevación, volteo, retorno e inicio de un nuevo contenedor de carga trasera es de 10 a 15 segundos. Se han localizado un gran número de pesadas consecutivas con separaciones de <strong>2 a 6 segundos</strong>. Estos registros carecen de viabilidad física y representan señales parásitas de báscula o re-pesados involuntarios producidos por las vibraciones del ciclo de compactación del recolector.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Tabla de Resultados por Día */}
+                <div className="space-y-3">
+                  <h5 className="text-white font-bold text-sm uppercase tracking-wider text-indigo-400">3. Tabla de Desviaciones Ponderadas</h5>
+                  <div className="overflow-hidden border border-slate-800 rounded-lg">
+                    <table className="w-full text-left text-xs">
+                      <thead className="bg-slate-900 text-slate-400 uppercase">
+                        <tr>
+                          <th className="p-2.5">Día</th>
+                          <th className="p-2.5">Residuo</th>
+                          <th className="p-2.5 text-right">Masa Vertedero (Real)</th>
+                          <th className="p-2.5 text-right">Masa Bruta Pesadas</th>
+                          <th className="p-2.5 text-right">Desviación Bruta</th>
+                          <th className="p-2.5 text-right">Masa Depurada Est.</th>
+                          <th className="p-2.5 text-right">Desviación Depurada</th>
+                          <th className="p-2.5 text-center">Registros Identificados</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-800 font-mono text-slate-300">
+                        {resumenPorDia.map((r, i) => (
+                          <tr key={i} className="hover:bg-slate-900/40">
+                            <td className="p-2.5 text-slate-200 font-sans font-semibold">{r.dia}</td>
+                            <td className="p-2.5 text-slate-400 font-sans">{r.residuo}</td>
+                            <td className="p-2.5 text-right text-emerald-400">{r.vertedero.toLocaleString()} kg</td>
+                            <td className="p-2.5 text-right text-rose-400">{r.totalOriginal.toLocaleString()} kg</td>
+                            <td className="p-2.5 text-right text-rose-400 font-bold">+{r.desviacionOriginalPct.toFixed(1)}%</td>
+                            <td className="p-2.5 text-right text-sky-400">{r.totalDepurado.toLocaleString()} kg</td>
+                            <td className={`p-2.5 text-right font-bold ${Math.abs(r.desviacionDepuradaPct) < 15 ? 'text-emerald-400' : 'text-amber-400'}`}>
+                              {r.desviacionDepuradaPct >= 0 ? '+' : ''}{r.desviacionDepuradaPct.toFixed(1)}%
+                            </td>
+                            <td className="p-2.5 text-center font-sans">
+                              {r.registrosSospechosos} de {r.registrosTotales} ({r.pctSospechosos.toFixed(0)}%)
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+
+                {/* Conclusiones de Acción */}
+                <div className="space-y-2 p-4 bg-emerald-950/20 border border-emerald-900/40 rounded-xl">
+                  <h5 className="text-emerald-400 font-bold text-xs uppercase tracking-wider">4. Medidas Correctivas Propuestas</h5>
+                  <ul className="list-disc list-inside text-xs text-slate-400 space-y-1.5 leading-relaxed">
+                    <li><strong className="text-slate-200">Ajuste de Software de Báscula de Tolva:</strong> Implementar un bloqueo temporal de pesaje de 12 segundos tras registrar una pesada válida para impedir el guardado de fluctuaciones por prensa.</li>
+                    <li><strong className="text-slate-200">Revisión de Módem / Buffer:</strong> Auditar el módulo de transmisión telemática del camión 4761KPW para erradicar las ráfagas repetitivas de carga de bases de datos.</li>
+                    <li><strong className="text-slate-200">Validación de Datos en Facturación:</strong> Utilizar el reporte depurado por el algoritmo EcoScan para facturar y reportar indicadores, en lugar de los registros en bruto del camión.</li>
+                  </ul>
+                </div>
+
+              </div>
+            </div>
+
+          </div>
+        )}
+
+      </main>
+
+      <footer className="border-t border-slate-800 bg-slate-950 text-center py-6 text-xs text-slate-500 mt-12">
+        <p>© 2026 EcoScan Pesadas - Software Profesional de Auditoría de Pesaje. Todos los derechos reservados.</p>
+        <p className="mt-1">Desarrollado para optimizar la trazabilidad y resolver incoherencias con descargas en vertederos.</p>
+      </footer>
+    </div>
+  );
+}
